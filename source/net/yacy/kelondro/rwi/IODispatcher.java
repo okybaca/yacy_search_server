@@ -28,6 +28,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit; // Import added for TimeUnit
 
 import net.yacy.cora.util.ConcurrentLog;
 import net.yacy.kelondro.blob.ArrayStack;
@@ -151,7 +152,11 @@ public class IODispatcher extends Thread {
         DumpJob<? extends Reference> dumpJob;
         try {
             loop: while (true) try {
-                this.controlQueue.acquire();
+                if (!this.controlQueue.tryAcquire(30, TimeUnit.SECONDS)) {
+    log.warn("Timed out waiting for controlQueue permit.");
+    continue; // Avoid deadlock and move to the next loop iteration
+}
+
 
                 // prefer dump actions to flush memory to disc
                 if (!this.dumpQueue.isEmpty()) {

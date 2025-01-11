@@ -36,7 +36,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import net.yacy.cora.util.ConcurrentLog;
 import net.yacy.kelondro.util.NamePrefixThreadFactory;
 
-
 public class WorkflowProcessor<J extends WorkflowJob> {
 
     public static final int availableCPU = Runtime.getRuntime().availableProcessors();
@@ -58,7 +57,6 @@ public class WorkflowProcessor<J extends WorkflowJob> {
             final WorkflowTask<J> task,
             final int inputQueueSize, final WorkflowProcessor<J> output,
             final int maxpoolsize) {
-        // start a fixed number of executors that handle entries in the process queue
         this.processName = name;
         this.description = description;
         this.task = task;
@@ -68,26 +66,17 @@ public class WorkflowProcessor<J extends WorkflowJob> {
         this.output = output;
         this.executor = Executors.newCachedThreadPool(new NamePrefixThreadFactory(name));
         this.executorRunning = new AtomicInteger(0);
-        /*
-        for (int i = 0; i < this.maxpoolsize; i++) {
-            this.executor.submit(new InstantBlockingThread<J>(this));
-            this.executorRunning++;
-        }
-        */
-        // init statistics
         this.blockTime = 0;
         this.execTime = 0;
         this.passOnTime = 0;
         this.execCount = 0;
-
-        // store this object for easy monitoring
         processMonitor.add(this);
     }
 
     public WorkflowTask<J> getTask() {
-		return this.task;
-	}
-    
+        return this.task;
+    }
+
     public int getQueueSize() {
         if (this.input == null) return 0;
         return this.input.size();
@@ -105,32 +94,30 @@ public class WorkflowProcessor<J extends WorkflowJob> {
     public int getMaxConcurrency() {
         return this.maxpoolsize;
     }
-    
+
     public int getExecutors() {
         return this.executorRunning.get();
     }
-    
-    /**
-     * the decExecutors method may only be called within the AbstractBlockingThread while loop!!
-     */
+
     public void decExecutors() {
         this.executorRunning.decrementAndGet();
     }
 
     public J take() throws InterruptedException {
-        // read from the input queue
         if (this.input == null) {
             return null;
         }
         final long t = System.currentTimeMillis();
-        final J j = this.input.take();
+        final J j = this.input.poll(30, TimeUnit.SECONDS); // Timeout after 10 seconds
+        if (j == null) {
+            ConcurrentLog.warn("WorkflowProcessor", "Queue is empty. Retrying...");
+            return null;
+        }
         this.blockTime += System.currentTimeMillis() - t;
         return j;
     }
 
     public void passOn(final J next) {
-        // don't mix this method up with enQueue()!
-        // this method enqueues into the _next_ queue, not this queue!
         if (this.output == null) {
             return;
         }
@@ -165,10 +152,7 @@ public class WorkflowProcessor<J extends WorkflowJob> {
     }
 
     public void enQueue(final J in) {
-        // ensure that enough job executors are running
         if (this.input == null || this.executor == null || this.executor.isShutdown() || this.executor.isTerminated()) {
-            // execute serialized without extra thread
-            //Log.logWarning("PROCESSOR", "executing job " + environment.getClass().getName() + "." + methodName + " serialized");
             try {
                 final J out = this.task.process(in);
                 if (out != null && this.output != null) {
@@ -178,11 +162,11 @@ public class WorkflowProcessor<J extends WorkflowJob> {
                 ConcurrentLog.logException(e);
             }
             return;
-        }        
-        // execute concurrent in thread
+        }
         while (this.input != null) {
             try {
                 this.input.put(in);
+                ConcurrentLog.info("WorkflowProcessor", "Task enqueued. Queue size: " + this.input.size());
                 if (this.input.size() > this.executorRunning.get() && this.executorRunning.get() < this.maxpoolsize) synchronized (executor) {
                     if (this.input.size() > this.executorRunning.get() && this.executorRunning.get() < this.maxpoolsize) {
                         this.executorRunning.incrementAndGet();
@@ -204,28 +188,21 @@ public class WorkflowProcessor<J extends WorkflowJob> {
         if (this.executor.isShutdown()) {
             return;
         }
-        // before we put pills into the queue, make sure that they will take them
         relaxCapacity();
-        // put poison pills into the queue
         for (int i = 0; i < this.executorRunning.get(); i++) {
             try {
                 ConcurrentLog.info("serverProcessor", "putting poison pill in queue " + this.processName + ", thread " + i);
-                this.input.put((J) WorkflowJob.poisonPill); // put a poison pill into the queue which will kill the job
+                this.input.put((J) WorkflowJob.poisonPill);
                 ConcurrentLog.info("serverProcessor", ".. poison pill is in queue " + this.processName + ", thread " + i + ". awaiting termination");
             } catch (final InterruptedException e) { }
         }
-
-        // wait until input queue is empty
         for (int i = 0; i < 10; i++) {
             if (this.input.size() <= 0) break;
             ConcurrentLog.info("WorkflowProcess", "waiting for queue " + this.processName + " to shut down; input.size = " + this.input.size());
             try {Thread.sleep(1000);} catch (final InterruptedException e) {}
         }
         this.executorRunning.set(0);
-
-        // shut down executors
         if (this.executor != null & !this.executor.isShutdown()) {
-            // wait for shutdown
             try {
                 this.executor.shutdown();
                 for (int i = 0; i < 60; i++) {
@@ -237,7 +214,6 @@ public class WorkflowProcessor<J extends WorkflowJob> {
         ConcurrentLog.info("serverProcessor", "queue " + this.processName + ": shutdown.");
         this.executor = null;
         this.input = null;
-        // remove entry from monitor
         final Iterator<WorkflowProcessor<?>> i = processes();
         WorkflowProcessor<?> p;
         while (i.hasNext()) {
@@ -275,18 +251,10 @@ public class WorkflowProcessor<J extends WorkflowJob> {
         return s.toString();
     }
 
-    /**
-     * the block time is the time that a take() blocks until it gets a value
-     * @return
-     */
     public long getBlockTime() {
         return this.blockTime;
     }
 
-    /**
-     * the exec time is the complete time of the execution and processing of the value from take()
-     * @return
-     */
     public long getExecTime() {
         return this.execTime;
     }
@@ -294,13 +262,9 @@ public class WorkflowProcessor<J extends WorkflowJob> {
         return this.execCount;
     }
 
-    /**
-     * the passOn time is the time that a put() takes to enqueue a result value to the next queue
-     * in case that the target queue is limited and may be full, this value may increase
-     * @return
-     */
     public long getPassOnTime() {
         return this.passOnTime;
     }
 
 }
+

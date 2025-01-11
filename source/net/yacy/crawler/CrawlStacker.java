@@ -34,6 +34,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import net.yacy.cora.date.ISO8601Formatter;
@@ -61,7 +62,7 @@ import net.yacy.repository.FilterEngine;
 import net.yacy.search.Switchboard;
 import net.yacy.search.index.Segment;
 
-public final class CrawlStacker implements WorkflowTask<Request>{
+public final class CrawlStacker implements WorkflowTask<Request> {
 
     public static String ERROR_NO_MATCH_MUST_MATCH_FILTER = "url does not match must-match filter ";
     public static String ERROR_MATCH_WITH_MUST_NOT_MATCH_FILTER = "url matches must-not-match filter ";
@@ -72,13 +73,13 @@ public final class CrawlStacker implements WorkflowTask<Request>{
     private final static ConcurrentLog log = new ConcurrentLog("STACKCRAWL");
 
     private final RobotsTxt robots;
-    private final WorkflowProcessor<Request>  requestQueue;
-    public  final CrawlQueues       nextQueue;
-    private final CrawlSwitchboard  crawler;
-    private final Segment           indexSegment;
-    private final SeedDB            peers;
-    private final boolean           acceptLocalURLs, acceptGlobalURLs;
-    private final FilterEngine      domainList;
+    private final WorkflowProcessor<Request> requestQueue;
+    public final CrawlQueues nextQueue;
+    private final CrawlSwitchboard crawler;
+    private final Segment indexSegment;
+    private final SeedDB peers;
+    private final boolean acceptLocalURLs, acceptGlobalURLs;
+    private final FilterEngine domainList;
 
     // this is the process that checks url for double-occurrences and for allowance/disallowance by robots.txt
 
@@ -124,11 +125,11 @@ public final class CrawlStacker implements WorkflowTask<Request>{
     public synchronized void close() {
         CrawlStacker.log.info("Shutdown. waiting for remaining " + this.size() + " crawl stacker job entries. please wait.");
         this.requestQueue.shutdown();
-        
+
         // busy waiting for the queue to empty
         for (int i = 0; i < 10; i++) {
-        	if (this.size() <= 0) break;
-        	try {Thread.sleep(1000);} catch (InterruptedException e) {}
+            if (this.size() <= 0) break;
+            try { Thread.sleep(1000); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
         }
 
         CrawlStacker.log.info("Shutdown. Closing stackCrawl queue.");
@@ -157,10 +158,11 @@ public final class CrawlStacker implements WorkflowTask<Request>{
     }
 
     public void enqueueEntry(final Request entry) {
-
-        // DEBUG
-        if (CrawlStacker.log.isFinest()) CrawlStacker.log.finest("ENQUEUE " + entry.url() + ", referer=" + entry.referrerhash() + ", initiator=" + ((entry.initiator() == null) ? "" : ASCII.String(entry.initiator())) + ", name=" + entry.name() + ", appdate=" + entry.appdate() + ", depth=" + entry.depth());
-        this.requestQueue.enQueue(entry);
+        try {
+            this.requestQueue.enQueue(entry);
+        } catch (Exception e) {
+            log.warn("Failed to enqueue: " + entry.url(), e);
+        }
     }
 
     public void enqueueEntriesAsynchronous(
@@ -175,6 +177,11 @@ public final class CrawlStacker implements WorkflowTask<Request>{
             }
         }.start();
     }
+
+    // Remaining methods are unchanged...
+
+
+    // Remaining methods are unchanged...
 
     /**
      * Enqueue crawl start entries

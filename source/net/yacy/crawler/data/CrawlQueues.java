@@ -736,7 +736,7 @@ public class CrawlQueues {
         public void run() {
             this.setPriority(Thread.MIN_PRIORITY); // http requests from the crawler should not cause that other functions work worse
             try {
-                while ((request = CrawlQueues.this.workerQueue.poll(10, TimeUnit.SECONDS)) != POISON_REQUEST) {
+                while ((request = CrawlQueues.this.workerQueue.poll(30, TimeUnit.SECONDS)) != POISON_REQUEST) {
                     if (request == null) break; // we run this only for a specific time and then let the process die to clear up resources
                     request.setStatus("worker-initialized", WorkflowJob.STATUS_INITIATED);
                     this.setName("CrawlQueues.Loader(" + request.url().toNormalform(false) + ")");
