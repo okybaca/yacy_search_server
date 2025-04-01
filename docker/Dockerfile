@@ -6,6 +6,9 @@
 # run with
 # docker run -d --name yacy -p 8090:8090 -p 8443:8443 -v yacy_data:/opt/yacy_search_server/DATA --log-opt max-size=200m --log-opt max-file=2 yacy/yacy_search_server:latest
 
+## build base
+FROM eclipse-temurin:17 AS base
+RUN apt-get update && apt-get install -yq wkhtmltopdf imagemagick xvfb ghostscript && rm -rf /var/lib/apt/lists/*
 
 ## builder image
 FROM eclipse-temurin:24-jdk-noble AS builder
