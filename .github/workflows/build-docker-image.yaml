@@ -21,14 +21,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - tag: ""
-            suffix: "-ubuntu"
-            is_default: true
+          - tag: "" # Default Dockerfile
             platforms: linux/amd64,linux/arm64
           - tag: alpine
-            suffix: "-alpine"
-            is_default: false
-            platforms: linux/amd64,linux/arm64
+            platforms: linux/amd64
 
     runs-on: ubuntu-latest
     steps:
@@ -44,8 +40,13 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           # list of Docker images to use as base name for tags
-          images: ${{ secrets.DOCKERHUB_REPONAME }}/${{ github.event.repository.name }}
-          flavor: latest=${{ matrix.is_default }}
+          images: |
+            ghcr.io/MisterX2000/yacy_search_server
+          # generate Docker tags based on the following events/attributes
+          flavor: |
+            latest=auto
+            prefix=
+            suffix=${{ matrix.tag == '' && '' || format('-{0}', matrix.tag)}}
           tags: |
             type=raw,value=latest${{ matrix.suffix }},enable=true
             #type=raw,value=sha-${{ github.sha }}${{ matrix.suffix }},enable=true
@@ -62,9 +63,10 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v5
         with:
-          file: docker/Dockerfile${{ matrix.tag != '' && format('.{0}', matrix.tag) || '' }}
-          push: true
+          # Use "Dockerfile" if matrix.tag is empty, otherwise use "Dockerfile.{tag}"
+          file: docker/Dockerfile${{ matrix.tag == '' && '' || format('.{0}', matrix.tag) }}
           platforms: ${{ matrix.platforms }}
+          push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           provenance: false
