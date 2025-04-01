@@ -2,7 +2,6 @@ name: Build Docker Image
 
 on:
   push:
-<<<<<<< HEAD
     branches:
       - "**"
     tags:
@@ -40,49 +39,11 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-=======
-    branches: 
-      - "**"
-    tags:
-      - "v*.*.*"
-  pull_request:
-  workflow_dispatch:
-
-permissions:
-  contents: read
-  packages: write
-  actions: write
-
-jobs:
-  docker:
-    strategy:
-      fail-fast: false
-      matrix:
-        dockerfile:
-          - name: Dockerfile
-            tag: 
-            platform: linux/amd64
-          - name: Dockerfile.aarch64
-            tag: aarch64
-            platform: linux/arm64
-          - name: Dockerfile.alpine
-            tag: alpine
-            platform: linux/amd64,linux/arm64
-          - name: Dockerfile.ArchLinux
-            tag: archlinux
-            platform: linux/amd64,linux/arm64
-          - name: Dockerfile.armv7
-            tag: armv7
-            platform: linux/arm/v7
-    runs-on: ubuntu-latest
-    steps:
->>>>>>> f29772413 (add docker build github action)
       - name: Docker meta
         id: meta
         uses: docker/metadata-action@v5
         with:
           # list of Docker images to use as base name for tags
-<<<<<<< HEAD
           images: ${{ secrets.DOCKERHUB_REPONAME }}/${{ github.event.repository.name }}
           flavor: latest=${{ matrix.is_default }}
           tags: |
@@ -92,32 +53,6 @@ jobs:
             type=raw,value='{{major}}.{{minor}}'${{ matrix.suffix }},enable=${{ startsWith(github.ref, 'refs/tags/') }}
             type=raw,value='{{major}}'${{ matrix.suffix }},enable=${{ startsWith(github.ref, 'refs/tags/') }}
 
-=======
-          images: |
-            ghcr.io/MisterX2000/yacy_search_server
-          # generate Docker tags based on the following events/attributes
-          flavor: |
-            latest=auto
-            prefix=
-            suffix=-${{ matrix.dockerfile.tag }} 
-          tags: |
-            type=schedule
-            type=ref,event=branch
-            type=ref,event=pr
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=semver,pattern={{major}}
-            type=sha
-
-      - name: Login to GitHub Container Registry
-        if: github.event_name != 'pull_request'
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.repository_owner }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      
->>>>>>> f29772413 (add docker build github action)
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
@@ -125,13 +60,12 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Build and push
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v5
         with:
-          platforms: ${{ matrix.dockerfile.platform }}
-          file: docker/${{ matrix.dockerfile.name }}
-          push: ${{ github.event_name != 'pull_request' }}
+          file: docker/Dockerfile${{ matrix.tag != '' && format('.{0}', matrix.tag) || '' }}
+          push: true
+          platforms: ${{ matrix.platforms }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
+          provenance: false
+          
