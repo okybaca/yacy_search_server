@@ -46,7 +46,7 @@ jobs:
           flavor: |
             latest=auto
             prefix=
-            suffix=${{ matrix.tag == '' && '' || format('-{0}', matrix.tag)}}
+            suffix=${{ matrix.tag != '' && format('-{0}', matrix.tag) || '' }}
           tags: |
             type=raw,value=latest${{ matrix.suffix }},enable=true
             #type=raw,value=sha-${{ github.sha }}${{ matrix.suffix }},enable=true
@@ -64,7 +64,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           # Use "Dockerfile" if matrix.tag is empty, otherwise use "Dockerfile.{tag}"
-          file: docker/Dockerfile${{ matrix.tag == '' && '' || format('.{0}', matrix.tag) }}
+          file: docker/Dockerfile${{ matrix.tag != '' && format('.{0}', matrix.tag) || '' }}
           platforms: ${{ matrix.platforms }}
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
