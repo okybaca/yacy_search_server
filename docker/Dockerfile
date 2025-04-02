@@ -6,9 +6,6 @@
 # run with
 # docker run -d --name yacy -p 8090:8090 -p 8443:8443 -v yacy_data:/opt/yacy_search_server/DATA --log-opt max-size=200m --log-opt max-file=2 yacy/yacy_search_server:latest
 
-## build base
-FROM eclipse-temurin:17 AS base
-RUN apt-get update && apt-get install -yq wkhtmltopdf imagemagick xvfb ghostscript && rm -rf /var/lib/apt/lists/*
 
 ## builder image
 FROM eclipse-temurin:24-jdk-noble AS builder
@@ -23,16 +20,7 @@ RUN for i in 1 2 3; do \
 # set current working dir & copy sources
 WORKDIR /opt
 COPY . /opt/yacy_search_server/
-
-RUN ant compile -f /opt/yacy_search_server/build.xml && \
-    apt-get purge -yq --auto-remove ant && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
-
-WORKDIR /opt/yacy_search_server/
-#RUN git rev-parse HEAD > .git/shallow && \
-#    git tag -l | xargs git tag -d && \
-#    git gc --prune=now
+RUN ant compile -f /opt/yacy_search_server/build.xml
 
 # Set initial admin password: "yacy" (encoded with custom yacy md5 function net.yacy.cora.order.Digest.encodeMD5Hex())
 RUN sed -i "/adminAccountBase64MD5=/c\adminAccountBase64MD5=MD5:8cffbc0d66567a0987a4aba1ec46d63c" /opt/yacy_search_server/defaults/yacy.init && \
@@ -65,4 +53,3 @@ USER yacy
 
 # Start yacy as a foreground process (-f) to display console logs and to wait for yacy process
 CMD ["/bin/sh","/opt/yacy_search_server/startYACY.sh","-f"]
-
