@@ -11,10 +11,13 @@ FROM eclipse-temurin:17-alpine
 FROM eclipse-temurin:21-jdk-alpine-3.21 AS builder
 
 # Install needed packages not in base image
-RUN apk add --no-cache curl git apache-ant
+# (curl for sh scripts in /bin, imagemagick, xvfb, ghostscript, wkhtmltopdf, and apache-ant for building)
+RUN apk add --no-cache curl imagemagick xvfb ghostscript wkhtmltopdf apache-ant
 
-# set current working dir & copy sources
+# set current working dir
 WORKDIR /opt
+
+# copy sources
 COPY . /opt/yacy_search_server/
 RUN ant compile -f /opt/yacy_search_server/build.xml
 
@@ -27,32 +30,9 @@ RUN sed -i "/adminAccountBase64MD5=/c\adminAccountBase64MD5=MD5:8cffbc0d66567a09
 FROM surnet/alpine-wkhtmltopdf:3.21.2-0.12.6-small AS wkhtmltopdf
 FROM eclipse-temurin:21-jre-alpine-3.21 AS app
 
-RUN apk add --no-cache \
-	imagemagick \
-	xvfb \
-	ghostscript \
-	# Install dependencies for wkhtmltopdf
-	libstdc++ \
-	libx11 \
-	libxrender \
-	libxext \
-	libssl3 \
-	ca-certificates \
-	fontconfig \
-	freetype \
-	ttf-dejavu \
-	ttf-droid \
-	ttf-freefont \
-	ttf-liberation \
-	# more fonts
-	&& apk add --no-cache --virtual .build-deps \
-	msttcorefonts-installer \
-	# Install microsoft fonts
-	&& update-ms-fonts \
-	&& fc-cache -f \
-	# Clean up when done
-	&& rm -rf /tmp/* \
-	&& apk del .build-deps
+RUN ant compile -f /opt/yacy_search_server/build.xml && \
+	rm -rf /opt/yacy_search_server/.git && \
+	rm -rf /opt/ant
 
 # Copy wkhtmltopdf files from docker-wkhtmltopdf image
 COPY --from=wkhtmltopdf /bin/wkhtmltopdf /bin/wkhtmltopdf
