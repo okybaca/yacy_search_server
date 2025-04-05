@@ -6,9 +6,19 @@
 # run with
 # docker run -d --name yacy -p 8090:8090 -p 8443:8443 -v yacy_data:/opt/yacy_search_server/DATA --log-opt max-size=200m --log-opt max-file=2 yacy/yacy_search_server:latest
 
+<<<<<<< HEAD
 
 ## builder image
 FROM eclipse-temurin:24-jdk-noble AS builder
+=======
+## build
+FROM eclipse-temurin:21 AS builder
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ant \
+    git \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+>>>>>>> fe4d396d8 (test dockerfile)
 
 # Install needed packages not in base image
 RUN for i in 1 2 3; do \
@@ -20,6 +30,10 @@ RUN for i in 1 2 3; do \
 # set current working dir & copy sources
 WORKDIR /opt
 COPY . /opt/yacy_search_server/
+<<<<<<< HEAD
+=======
+
+>>>>>>> fe4d396d8 (test dockerfile)
 RUN ant compile -f /opt/yacy_search_server/build.xml
 
 # Set initial admin password: "yacy" (encoded with custom yacy md5 function net.yacy.cora.order.Digest.encodeMD5Hex())
@@ -28,12 +42,13 @@ RUN sed -i "/adminAccountBase64MD5=/c\adminAccountBase64MD5=MD5:8cffbc0d66567a09
     sed -i "/server.https=false/c\server.https=true" /opt/yacy_search_server/defaults/yacy.init
 
 ## build final image
-FROM eclipse-temurin:24-jdk-noble AS app
-RUN for i in 1 2 3; do \
-      apt-get update && break || sleep 5; \
-    done && \
-    apt-get install -y --no-install-recommends wkhtmltopdf xvfb ghostscript && \
-    rm -rf /var/lib/apt/lists/*
+FROM eclipse-temurin:21-jre AS app
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    wkhtmltopdf \
+    xvfb \
+    ghostscript \
+    && rm -rf /var/lib/apt/lists/*
 
 LABEL maintainer="Michael Peter Christen <mc@yacy.net>"
 
