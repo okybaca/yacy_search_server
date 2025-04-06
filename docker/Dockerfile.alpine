@@ -1,7 +1,7 @@
-# Build a docker image from latest YaCy sources on Alpine Linux
-# with wkhtmltopdf for PDF generation and Java 21
-FROM surnet/alpine-wkhtmltopdf:3.21.2-0.12.6-full as wkhtmltopdf
-FROM eclipse-temurin:21-alpine-3.21
+# Alpine Docker image for YaCy
+
+# build with
+# docker build -t yacy/yacy_search_server:alpine -f Dockerfile.alpine ../
 
 # run with
 # docker run -d --name yacy -p 8090:8090 -p 8443:8443 -v yacy_data:/opt/yacy_search_server/DATA --log-opt max-size=200m --log-opt max-file=2 yacy/yacy_search_server:alpine
@@ -10,8 +10,28 @@ FROM eclipse-temurin:21-alpine-3.21
 ## builder image
 FROM eclipse-temurin:21-jdk-alpine-3.21 AS builder
 
-# Install dependencies for wkhtmltopdf
+# Install needed packages not in base image
+RUN apk add --no-cache curl git apache-ant
+
+# set current working dir & copy sources
+WORKDIR /opt
+COPY . /opt/yacy_search_server/
+RUN ant compile -f /opt/yacy_search_server/build.xml
+
+# Set initial admin password: "yacy" (encoded with custom yacy md5 function net.yacy.cora.order.Digest.encodeMD5Hex())
+RUN sed -i "/adminAccountBase64MD5=/c\adminAccountBase64MD5=MD5:8cffbc0d66567a0987a4aba1ec46d63c" /opt/yacy_search_server/defaults/yacy.init && \
+	sed -i "/adminAccountForLocalhost=/c\adminAccountForLocalhost=false" /opt/yacy_search_server/defaults/yacy.init && \
+	sed -i "/server.https=false/c\server.https=true" /opt/yacy_search_server/defaults/yacy.init
+
+## build final image
+FROM surnet/alpine-wkhtmltopdf:3.21.2-0.12.6-small AS wkhtmltopdf
+FROM eclipse-temurin:21-jre-alpine-3.21 AS app
+
 RUN apk add --no-cache \
+	imagemagick \
+	xvfb \
+	ghostscript \
+	# Install dependencies for wkhtmltopdf
 	libstdc++ \
 	libx11 \
 	libxrender \
@@ -36,45 +56,6 @@ RUN apk add --no-cache \
 
 # Copy wkhtmltopdf files from docker-wkhtmltopdf image
 COPY --from=wkhtmltopdf /bin/wkhtmltopdf /bin/wkhtmltopdf
-COPY --from=wkhtmltopdf /bin/wkhtmltoimage /bin/wkhtmltoimage
-COPY --from=wkhtmltopdf /lib/libwkhtmltox* /lib/
-
-# Install needed packages not in base image
-RUN apk add --no-cache curl git imagemagick xvfb ghostscript apache-ant
-
-# set current working dir & copy sources
-WORKDIR /opt
-COPY . /opt/yacy_search_server/
-RUN ant compile -f /opt/yacy_search_server/build.xml
-
-# Set initial admin password: "yacy" (encoded with custom yacy md5 function net.yacy.cora.order.Digest.encodeMD5Hex())
-RUN sed -i "/adminAccountBase64MD5=/c\adminAccountBase64MD5=MD5:8cffbc0d66567a0987a4aba1ec46d63c" /opt/yacy_search_server/defaults/yacy.init && \
-	sed -i "/adminAccountForLocalhost=/c\adminAccountForLocalhost=false" /opt/yacy_search_server/defaults/yacy.init && \
-	sed -i "/server.https=false/c\server.https=true" /opt/yacy_search_server/defaults/yacy.init
-
-## build final image
-FROM surnet/alpine-wkhtmltopdf:3.21.2-0.12.6-small AS wkhtmltopdf
-FROM eclipse-temurin:21-jre-alpine-3.21 AS app
-
-RUN ant compile -f /opt/yacy_search_server/build.xml && \
-	rm -rf /opt/yacy_search_server/.git && \
-	rm -rf /opt/ant
-
-<<<<<<< HEAD
-# Copy wkhtmltopdf files from docker-wkhtmltopdf image
-COPY --from=wkhtmltopdf /bin/wkhtmltopdf /bin/wkhtmltopdf
-=======
-RUN \
-	# Set initial admin password: "yacy" (encoded with custom yacy md5 function net.yacy.cora.order.Digest.encodeMD5Hex())
-	sed -i "/adminAccountBase64MD5=/c\adminAccountBase64MD5=MD5:8cffbc0d66567a0987a4aba1ec46d63c" /opt/yacy_search_server/defaults/yacy.init && \
-	sed -i "/adminAccountForLocalhost=/c\adminAccountForLocalhost=false" /opt/yacy_search_server/defaults/yacy.init && \
-	# Intially enable HTTPS: this is the most secure option for remote administrator authentication
-	sed -i "/server.https=false/c\server.https=true" /opt/yacy_search_server/defaults/yacy.init && \
-	# Create user and group yacy: this user will be used to run YaCy main process
-	addgroup yacy && adduser -S -G yacy -H -D yacy && \
-	# Set ownership of yacy install directory to yacy user/group
-	chown yacy:yacy -R /opt/yacy_search_server
->>>>>>> 0970eca32 (update main dockerfile to jdk 21)
 
 # copy YaCy to app image
 RUN addgroup yacy && adduser -S -G yacy -H -D yacy
