@@ -12,7 +12,7 @@
 FROM eclipse-temurin:24-jdk-noble AS builder
 =======
 ## build
-FROM eclipse-temurin:21 AS builder
+FROM eclipse-temurin:21-jdk AS builder
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ant \
     git \
