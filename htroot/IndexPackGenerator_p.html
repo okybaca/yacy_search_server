@@ -3,14 +3,14 @@
 <html xmlns="http://www.w3.org/1999/xhtml">
 #(reload)#::<meta http-equiv="REFRESH" content="5; url=/IndexPackGenerator_p.html">#(/reload)#
   <head>
-    <title>YaCy '#[clientname]#': URL Database Administration</title>
+    <title>YaCy '#[clientname]#': Index Pack Generator</title>
     #%env/templates/metas.template%#
   </head>
   <body id="IndexControl">
     #%env/templates/header.template%#
     #%env/templates/submenuIndexImport.template%#
 
-    <h2>Index Pack Generator</h2>
+    <h2>YaCy Pack Generator</h2>
     <p>The local index currently contains #[ucount]# documents, only #[ucount200]# exportable with status code 200 - the remaining are error documents.</p>
 
     #(lurlexport)#::
@@ -20,8 +20,9 @@
         <dt class="TableCellDark">Set a Category (this goes into the filename)</dt>
         <dd>
             <select name="category" id="category" class="form-control">
+            <option value="mix" selected="selected">mix - a mix of document types, for content from wide web crawls</option>
             <option value="core">core - technical documentation, operation systems, computer hardware, open source and free software, manuals, protocol standards</option>
-            <option value="scroll" selected="selected">scroll - non-technical documents: knowledge, encyclopedia, linguistic corpora, dictionaries, translation memories, texts, non-fiction books, historical books</option>
+            <option value="scroll">scroll - non-technical documents: knowledge, encyclopedia, linguistic corpora, dictionaries, translation memories, texts, non-fiction books, historical books</option>
             <option value="codex">codex - non-technical standards: industry standards, laws, rules, compliance</option>
             <option value="gem">gem - research, papers, university publications, science</option>
             <option value="fiction">fiction - fictional documents: movies, stories, series, books (fiction, science-fiction)</option>

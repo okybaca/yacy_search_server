@@ -44,6 +44,7 @@ import net.yacy.cora.protocol.RequestHeader;
 import net.yacy.cora.protocol.ResponseHeader;
 import net.yacy.cora.util.ByteBuffer;
 import net.yacy.cora.util.ConcurrentLog;
+import net.yacy.crawler.data.CrawlProfile;
 import net.yacy.crawler.retrieval.Request;
 import net.yacy.crawler.retrieval.Response;
 import net.yacy.document.TextParser;
@@ -83,22 +84,39 @@ public class WarcImporter extends Thread implements Importer {
     private final long sourceSize; // length of the input source (for statistic)
     private long consumed; // bytes consumed from input source (for statistic)
     private boolean abort = false; // flag to signal stop of import
+    private String collection;
 
-    public WarcImporter(MultiProtocolURL url) throws IOException {
+    public WarcImporter(MultiProtocolURL url, String collection) throws IOException {
         super("WarcImporter - from InputStream");
         this.recordCnt = 0;
         this.sourceSize = -1;
         this.name = url.toNormalform(true);
         this.source = url.getInputStream(ClientIdentification.yacyInternetCrawlerAgent);
         if (this.name.endsWith(".gz")) this.source = new GZIPInputStream(this.source);
+        this.collection = collection;
     }
 
-    public WarcImporter(File f) throws IOException {
+    public WarcImporter(File f, String collection) throws IOException {
        super("WarcImporter - from file " + f.getName());
        this.name = f.getName();
        this.sourceSize = f.length();
        this.source = new FileInputStream(f);
        if (this.name.endsWith(".gz")) this.source = new GZIPInputStream(this.source);
+       this.collection = collection;
+   }
+
+    public WarcImporter(File f, InputStream is, String collection) throws IOException {
+        super("WarcImporter - from file " + f.getName());
+        this.name = f.getName();
+        if (!f.exists() && is != null) {
+            this.sourceSize = is.available();
+            this.source = is;
+        } else {
+            this.sourceSize = f.length();
+            this.source = new FileInputStream(f);
+            if (this.name.endsWith(".gz")) this.source = new GZIPInputStream(this.source);
+        }
+        this.collection = collection;
     }
 
     /**
@@ -114,6 +132,10 @@ public class WarcImporter extends Thread implements Importer {
         byte[] content;
         job = this;
         this.startTime = System.currentTimeMillis();
+
+        final CrawlProfile warcProfile = (CrawlProfile) Switchboard.getSwitchboard().crawler.defaultPackProfile.clone();
+        warcProfile.setCollections(this.collection);
+        warcProfile.setHandle();
 
         WarcReader localwarcReader = WarcReaderFactory.getReader(f);
         WarcRecord wrec = localwarcReader.getNextRecord();
@@ -165,15 +187,15 @@ public class WarcImporter extends Thread implements Importer {
                                     requestHeader.referer() == null ? null : requestHeader.referer().hash(),
                                     "warc",
                                     responseHeader.lastModified(),
-                                    Switchboard.getSwitchboard().crawler.defaultPackProfile.handle(),
+                                    warcProfile.handle(),
                                     0,
-                                    Switchboard.getSwitchboard().crawler.defaultPackProfile.timezoneOffset());
+                                    warcProfile.timezoneOffset());
 
                             final Response response = new Response(
                                     request,
                                     requestHeader,
                                     responseHeader,
-                                    Switchboard.getSwitchboard().crawler.defaultPackProfile,
+                                    warcProfile,
                                     false,
                                     content
                             );
