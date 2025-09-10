@@ -53,3 +53,4 @@ USER yacy
 
 # Start yacy as a foreground process (-f) to display console logs and to wait for yacy process
 CMD ["/bin/sh","/opt/yacy_search_server/startYACY.sh","-f"]
+

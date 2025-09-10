@@ -582,8 +582,6 @@ public class BookmarksDB {
                 }
                 }
             }
-            stringBuilder.append("]");
-
             return stringBuilder.toString();
         }
 
