@@ -20,7 +20,36 @@
 
 package net.yacy.document.parser.html;
 
-import net.yacy.cora.date.CustomISO8601Formatter;
+import java.awt.Dimension;
+import java.io.ByteArrayInputStream;
+import java.io.File;
+import java.io.IOException;
+import java.io.Writer;
+import java.lang.reflect.Array;
+import java.net.MalformedURLException;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
+import java.text.ParseException;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Properties;
+import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import javax.swing.event.EventListenerList;
+
+import net.yacy.cora.date.ISO8601Formatter;
 import net.yacy.cora.document.id.AnchorURL;
 import net.yacy.cora.document.id.DigestURL;
 import net.yacy.cora.document.id.MultiProtocolURL;
@@ -32,36 +61,16 @@ import net.yacy.cora.util.ConcurrentLog;
 import net.yacy.cora.util.NumberTools;
 import net.yacy.document.SentenceReader;
 import net.yacy.document.VocabularyScraper;
-import net.yacy.document.parser.html.Evaluation.Element;
 import net.yacy.document.parser.htmlParser;
+import net.yacy.document.parser.html.Evaluation.Element;
 import net.yacy.kelondro.io.CharBuffer;
 import net.yacy.kelondro.util.FileUtils;
 import net.yacy.kelondro.util.ISO639;
-import org.json.JSONException;
-import org.json.JSONObject;
-
-import javax.swing.event.EventListenerList;
-import java.awt.*;
-import java.io.ByteArrayInputStream;
-import java.io.File;
-import java.io.IOException;
-import java.io.Writer;
-import java.lang.reflect.Array;
-import java.net.MalformedURLException;
-import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
-import java.text.ParseException;
-import java.util.*;
-import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
  * A content scraper supporting HTML tags.
  */
 public class ContentScraper extends AbstractScraper implements Scraper {
-
-    private final static ConcurrentLog log = new ConcurrentLog("SCRAPER");
 
     private final static int MAX_TAGSIZE = 1024 * 1024;
     public static final int MAX_DOCSIZE = 40 * 1024 * 1024;
@@ -378,28 +387,28 @@ public class ContentScraper extends AbstractScraper implements Scraper {
                     r--;
                     if (newtext[r] == 'N') {
                         this.lat =  Double.parseDouble(new String(newtext, r + 2, p - r - 2)) +
-                                Double.parseDouble(new String(newtext, p + pl + 1, q - p - pl - 1)) / 60.0d;
+                                    Double.parseDouble(new String(newtext, p + pl + 1, q - p - pl - 1)) / 60.0d;
                         if (this.lon != 0.0d) break location;
                         s = q + 6;
                         continue location;
                     }
                     if (newtext[r] == 'S') {
                         this.lat = -Double.parseDouble(new String(newtext, r + 2, p - r - 2)) -
-                                Double.parseDouble(new String(newtext, p + pl + 1, q - p - pl - 1)) / 60.0d;
+                                    Double.parseDouble(new String(newtext, p + pl + 1, q - p - pl - 1)) / 60.0d;
                         if (this.lon != 0.0d) break location;
                         s = q + 6;
                         continue location;
                     }
                     if (newtext[r] == 'E') {
                         this.lon =  Double.parseDouble(new String(newtext, r + 2, p - r - 2)) +
-                                Double.parseDouble(new String(newtext, p + pl + 1, q - p - pl - 1)) / 60.0d;
+                                    Double.parseDouble(new String(newtext, p + pl + 1, q - p - pl - 1)) / 60.0d;
                         if (this.lat != 0.0d) break location;
                         s = q + 6;
                         continue location;
                     }
                     if (newtext[r] == 'W') {
                         this.lon = -Double.parseDouble(new String(newtext, r + 2, p - r - 2)) -
-                                Double.parseDouble(new String(newtext, p + 2, q - p - pl - 1)) / 60.0d;
+                                    Double.parseDouble(new String(newtext, p + 2, q - p - pl - 1)) / 60.0d;
                         if (this.lat != 0.0d) break location;
                         s = q + 6;
                         continue location;
@@ -490,7 +499,7 @@ public class ContentScraper extends AbstractScraper implements Scraper {
              * But when unpaired, in most cases this is that the unpaired bracket is not part of the URL, but rather used to wrap it in the text*/
             urlString = removeUnpairedBrackets(urlString, '(', ')');
             urlString = removeUnpairedBrackets(urlString, '{', '}');
-            urlString = removeUnpairedBrackets(urlString, '[', ']');
+               urlString = removeUnpairedBrackets(urlString, '[', ']');
 
             offset = schemePosition + urlString.length();
             try {
@@ -532,7 +541,7 @@ public class ContentScraper extends AbstractScraper implements Scraper {
      * @return the original string or a truncated copy
      */
     protected static String removeUnpairedBrackets(final String str, final char openingMark,
-                                                   final char closingMark) {
+            final char closingMark) {
         if(str == null) {
             return null;
         }
@@ -988,19 +997,7 @@ public class ContentScraper extends AbstractScraper implements Scraper {
                 }
                 this.evaluationScores.match(Element.scriptpath, src);
             } else {
-                final String schema = tag.opts.getProperty("id", EMPTY_STRING);
-                if (schema.length() > 0 && schema.equalsIgnoreCase("schema")) {
-                    final String type = tag.opts.getProperty("type", EMPTY_STRING);
-                    if (type.length() > 0 && type.equalsIgnoreCase("application/ld+json")) {
-                        try {
-                            JSONObject json = new JSONObject(new String(tag.content.getChars()));
-                            this.metas.put("script.datepublished", json.getString("datePublished"));
-                        } catch (JSONException e) {
-                        }
-                    }
-                } else {
-                    this.evaluationScores.match(Element.scriptcode, LB.matcher(new String(tag.content.getChars())).replaceAll(" "));
-                }
+                this.evaluationScores.match(Element.scriptcode, LB.matcher(new String(tag.content.getChars())).replaceAll(" "));
             }
         } else if (tag.name.equalsIgnoreCase("article")) {
             h = cleanLine(CharacterCoding.html2unicode(stripAllTags(tag.content.getChars())));
@@ -1584,7 +1581,7 @@ public class ContentScraper extends AbstractScraper implements Scraper {
         final Object[] listeners = this.htmlFilterEventListeners.getListenerList();
         for (int i = 0; i < listeners.length; i += 2) {
             if (listeners[i] == ScraperListener.class || listeners[i] == ContentScraperListener.class) {
-                ((ScraperListener)listeners[i+1]).scrapeTag0(tagname, tagopts);
+                    ((ScraperListener)listeners[i+1]).scrapeTag0(tagname, tagopts);
             }
         }
     }
@@ -1593,7 +1590,7 @@ public class ContentScraper extends AbstractScraper implements Scraper {
         final Object[] listeners = this.htmlFilterEventListeners.getListenerList();
         for (int i = 0; i < listeners.length; i += 2) {
             if (listeners[i] == ScraperListener.class  || listeners[i] == ContentScraperListener.class) {
-                ((ScraperListener)listeners[i+1]).scrapeTag1(tagname, tagopts, text);
+                    ((ScraperListener)listeners[i+1]).scrapeTag1(tagname, tagopts, text);
             }
         }
     }
@@ -1606,7 +1603,7 @@ public class ContentScraper extends AbstractScraper implements Scraper {
         final Object[] listeners = this.htmlFilterEventListeners.getListenerList();
         for (int i = 0; i < listeners.length; i += 2) {
             if (listeners[i] == ContentScraperListener.class) {
-                ((ContentScraperListener)listeners[i+1]).anchorAdded(anchorURL);
+                    ((ContentScraperListener)listeners[i+1]).anchorAdded(anchorURL);
             }
         }
     }
