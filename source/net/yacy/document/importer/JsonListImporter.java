@@ -89,7 +89,7 @@ public class JsonListImporter extends Thread implements Importer {
     @Override
     public void run() {
         try {
-            processSurrogateJson();
+            this.proceessPackJson();
         } catch (final IOException e) {
             log.warn(e);
         }
@@ -251,9 +251,12 @@ public class JsonListImporter extends Thread implements Importer {
                     }
 
                     // check if required fields are still missing and compute them
-                    if (!surrogate.containsKey(CollectionSchema.host_s.getSolrFieldName())) {
-                        final DigestURL durl = new DigestURL((String) surrogate.getFieldValue(CollectionSchema.sku.getSolrFieldName()));
-                        surrogate.setField(CollectionSchema.host_s.getSolrFieldName(), durl.getHost());
+                    if (!pack.containsKey(CollectionSchema.host_s.getSolrFieldName())) {
+                        final String durls = (String) pack.getFieldValue(CollectionSchema.sku.getSolrFieldName());
+                        if (durls != null) {
+                            final DigestURL durl = new DigestURL(durls);
+                            pack.setField(CollectionSchema.host_s.getSolrFieldName(), durl.getHost());
+                        }
                     }
 
                     // regular situation, just read content of field
@@ -303,7 +306,7 @@ public class JsonListImporter extends Thread implements Importer {
     @Override
     public int speed() {
         if (this.lineCount == 0) return 0;
-        return (int) (this.lineCount / Math.max(0L, runningTime() ));
+        return (int) (this.lineCount / Math.max(0L, this.runningTime() ));
     }
 
     @Override
@@ -316,7 +319,7 @@ public class JsonListImporter extends Thread implements Importer {
         if (this.consumed == 0) {
             return 0;
         }
-        final long speed = this.consumed / runningTime();
+        final long speed = this.consumed / this.runningTime();
         return (this.sourceSize - this.consumed) / speed;
     }
 
