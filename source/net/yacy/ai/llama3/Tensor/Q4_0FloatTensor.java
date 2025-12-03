@@ -28,7 +28,7 @@ import java.lang.invoke.VarHandle;
 
 import net.yacy.ai.llama3.Model.GGMLType;
 
-public final class Q4_0FloatTensor extends FloatTensor {
+public final class Q4_0FloatTensor extends AbstractFloatTensor implements FloatTensor {
 
     private final int size;
     private final ByteBuffer buffer;
@@ -74,7 +74,7 @@ public final class Q4_0FloatTensor extends FloatTensor {
         int blockIndex = index >>> LOG2_QUANT_BLOCK_SIZE; // index / QUANT_BLOCK_SIZE;
         int blockOffset = blockIndex * GGMLType.Q4_0.typeSize;
         final long offset = blockOffset;
-        float scale = FloatTensor.float16ToFloat(buffer.getShort((int) offset));
+        float scale = AbstractFloatTensor.float16ToFloat(buffer.getShort((int) offset));
         final int modIndex = index & (GGMLType.Q4_0.blockSize - 1); //index % QUANT_BLOCK_SIZE;
         final boolean isLow = modIndex < QUANT_HALF_BLOCK;
         final int adjustedIndex = modIndex - (isLow ? 0 : QUANT_HALF_BLOCK);
@@ -93,7 +93,7 @@ public final class Q4_0FloatTensor extends FloatTensor {
         while (inPos < end) {
             final int blockIndex = inPos >>> LOG2_QUANT_BLOCK_SIZE;
             final int blockOffset = blockIndex * GGMLType.Q4_0.typeSize;
-            float scale = FloatTensor.float16ToFloat(buffer.getShort((int) (long) blockOffset));
+            float scale = AbstractFloatTensor.float16ToFloat(buffer.getShort((int) (long) blockOffset));
 
             final int blockStart = blockIndex * GGMLType.Q4_0.blockSize;
             final int blockEnd = Math.min(blockStart + GGMLType.Q4_0.blockSize, end);
@@ -183,12 +183,13 @@ public final class Q4_0FloatTensor extends FloatTensor {
             // Get this block
             final int thisBlockIndex = (thisOffset + index) >>> LOG2_QUANT_BLOCK_SIZE; // (thisOffset + index) / QUANT_BLOCK_SIZE;
             final int thisBlockOffset = thisBlockIndex * GGMLType.Q4_0.typeSize;
-            final float thisScale = FloatTensor.float16ToFloat(buffer.getShort((int) (long) thisBlockOffset));
+            final float thisScale = AbstractFloatTensor.float16ToFloat(buffer.getShort((int) (long) thisBlockOffset));
             
             // Process block: read all quantized values from this block at once
             final int quantOffset = thisBlockOffset + QUANT_FLOAT16_BYTES;
             float blockResult = 0.0f;
             final int thatIndex = thatOffset + index;
+            /*
             if (that instanceof ArrayFloatTensor) {
                 final ArrayFloatTensor thatArray = (ArrayFloatTensor) that;
                 final float[] b = thatArray.values;
@@ -198,12 +199,19 @@ public final class Q4_0FloatTensor extends FloatTensor {
                     final float valB1 = (float) FLOAT_ARRAY_HANDLE.get(b, thatIndex + i + QUANT_HALF_BLOCK);
                     blockResult += ((packed & 0x0F) - 8) * valB0 + (((packed >>> 4) & 0x0F) - 8) * valB1;
                 }
-            } else {
+            } else if (that instanceof DirectBufferFloatTensor) {
+                final DirectBufferFloatTensor thatArray = (DirectBufferFloatTensor) that;
+                final FloatBuffer b = thatArray.floatBuffer;
+                for (int i = 0; i < QUANT_HALF_BLOCK; ++i) {
+                    final byte packed = buffer.get(quantOffset + i);
+                    blockResult += ((packed & 0x0F) - 8) * b.get(thatIndex + i) + (((packed >>> 4) & 0x0F) - 8) * b.get(thatIndex + i + QUANT_HALF_BLOCK);
+                }
+            } else {*/
                 for (int i = 0; i < QUANT_HALF_BLOCK; ++i) {
                     final byte packed = buffer.get(quantOffset + i);
                     blockResult += ((packed & 0x0F) - 8) * that.getFloat(thatIndex + i) + (((packed >>> 4) & 0x0F) - 8) * that.getFloat(thatIndex + i + QUANT_HALF_BLOCK);
                 }
-            }
+            //}
             result += blockResult * thisScale;
             index += GGMLType.Q4_0.blockSize;
         }

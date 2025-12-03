@@ -23,14 +23,17 @@
 package net.yacy.ai.llama3;
 
 import java.nio.FloatBuffer;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
 import java.util.function.IntConsumer;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import net.yacy.ai.llama3.Model.Arch;
 import net.yacy.ai.llama3.Model.Tokenizer;
-import net.yacy.ai.llama3.Tensor.ArrayFloatTensor;
+import net.yacy.ai.llama3.Tensor.AbstractFloatTensor;
+import net.yacy.ai.llama3.Tensor.DirectBufferFloatTensor;
 import net.yacy.ai.llama3.Tensor.FloatTensor;
 
 public final class Llama {
@@ -131,11 +134,11 @@ public final class Llama {
         public final FloatTensor wcls; // (vocab_size, dim)
 
         public Weights(FloatTensor token_embedding_table, FloatBuffer[] rms_att_weight, FloatTensor[] wq, 
-                      FloatTensor[] wk, FloatTensor[] wv,
-                      FloatTensor[] q_bias, FloatTensor[] k_bias, FloatTensor[] v_bias,
-                      FloatTensor[] wo, FloatBuffer[] rms_ffn_weight, 
-                      FloatTensor[] w1, FloatTensor[] w2, FloatTensor[] w3, FloatBuffer rms_final_weight, 
-                      FloatBuffer freq_cis_real, FloatBuffer freq_cis_imag, FloatTensor wcls) {
+                       FloatTensor[] wk, FloatTensor[] wv,
+                       FloatTensor[] q_bias, FloatTensor[] k_bias, FloatTensor[] v_bias,
+                       FloatTensor[] wo, FloatBuffer[] rms_ffn_weight, 
+                       FloatTensor[] w1, FloatTensor[] w2, FloatTensor[] w3, FloatBuffer rms_final_weight, 
+                       FloatBuffer freq_cis_real, FloatBuffer freq_cis_imag, FloatTensor wcls) {
             this.token_embedding_table = token_embedding_table;
             this.rms_att_weight = rms_att_weight;
             this.wq = wq;
@@ -194,15 +197,15 @@ public final class Llama {
             this.att = allocate(batchsize, config.numberOfHeads, config.contextLength);
             idxPrevBlock = -1;
 
-            this.logits = ArrayFloatTensor.allocate(config.vocabularySize);
+            this.logits = DirectBufferFloatTensor.allocate(config.vocabularySize);
             int kvDim = (config.dim * config.numberOfKeyValueHeads) / config.numberOfHeads;
-            this.keyCache = Stream.generate(() -> ArrayFloatTensor.allocate(config.contextLength, kvDim)).limit(config.numberOfLayers).toArray(FloatTensor[]::new);
-            this.valueCache = Stream.generate(() -> ArrayFloatTensor.allocate(config.contextLength, kvDim)).limit(config.numberOfLayers).toArray(FloatTensor[]::new);
+            this.keyCache = Stream.generate(() -> DirectBufferFloatTensor.allocate(config.contextLength, kvDim)).limit(config.numberOfLayers).toArray(FloatTensor[]::new);
+            this.valueCache = Stream.generate(() -> DirectBufferFloatTensor.allocate(config.contextLength, kvDim)).limit(config.numberOfLayers).toArray(FloatTensor[]::new);
         }
 
         private static FloatTensor[] allocate(int numTokens, int... dims) {
             return IntStream.range(0, numTokens)
-                    .mapToObj(i -> ArrayFloatTensor.allocate(dims))
+                    .mapToObj(i -> DirectBufferFloatTensor.allocate(dims))
                     .toArray(FloatTensor[]::new);
         }
 
@@ -232,7 +235,7 @@ public final class Llama {
         final int nTokens = tokens.length;
 
         // copy the token embedding into x
-        FloatTensor.parallelFor(0, nTokens, t ->
+        AbstractFloatTensor.parallelFor(0, nTokens, t ->
             weights.token_embedding_table.copyTo(tokens[t] * dim, state.x[t], 0, dim)
         );
 
@@ -241,7 +244,7 @@ public final class Llama {
             
             // attention rmsnorm
             final int curLayer = l;
-            FloatTensor.parallelFor(0, nTokens, t ->
+            AbstractFloatTensor.parallelFor(0, nTokens, t ->
                 rmsnorm(state.xb[t], state.x[t], weights.rms_att_weight[curLayer], dim, config.rmsNormEps)
             );
 
@@ -251,7 +254,7 @@ public final class Llama {
             weights.wv[l].matmul(nTokens, state.xb, state.v, kvDim, dim);
 
             // RoPE relative positional encoding: complex-valued rotate q and k in each head
-            FloatTensor.parallelFor(0, nTokens, t -> {
+            AbstractFloatTensor.parallelFor(0, nTokens, t -> {
                 for (int i = 0; i < dim; i += 2) {
                     int head_dim = i % headSize;
                     float fcr = weights.freq_cis_real.get((position + t) * (headSize / 2) + (head_dim / 2));
@@ -268,7 +271,7 @@ public final class Llama {
             });
 
             // save key,value at this time step (position) to our kv cache
-            FloatTensor.parallelFor(0, nTokens, t -> {
+            AbstractFloatTensor.parallelFor(0, nTokens, t -> {
                 state.k[t].copyTo(0, state.keyCache[curLayer], (position + t) * kvDim, kvDim);
                 state.v[t].copyTo(0, state.valueCache[curLayer], (position + t) * kvDim, kvDim);
             });
@@ -280,7 +283,7 @@ public final class Llama {
             }
 
             // multihead attention. iterate over all heads
-            FloatTensor.parallelForLong(0, (long) nTokens * (long) config.numberOfHeads, ht -> {
+            AbstractFloatTensor.parallelForLong(0, (long) nTokens * (long) config.numberOfHeads, ht -> {
                 int token = (int) (ht / config.numberOfHeads);
                 int h = (int) (ht % config.numberOfHeads);
                 int qOffset = h * headSize;
@@ -309,12 +312,12 @@ public final class Llama {
             weights.wo[l].matmul(nTokens, state.xb, state.xb2, dim, dim);
 
             // residual connection back into x
-            FloatTensor.parallelFor(0, nTokens, t -> {
+            AbstractFloatTensor.parallelFor(0, nTokens, t -> {
                 state.x[t].addInPlace(state.xb2[t]);
             });
 
             // ffn rmsnorm
-            FloatTensor.parallelFor(0, nTokens, t -> {
+            AbstractFloatTensor.parallelFor(0, nTokens, t -> {
                 rmsnorm(state.xb[t], state.x[t], weights.rms_ffn_weight[curLayer], dim, config.rmsNormEps);
             });
 
@@ -323,12 +326,12 @@ public final class Llama {
             weights.w3[l].matmul(nTokens, state.xb, state.hb2, config.hiddenDim, dim);
 
             // SwiGLU non-linearity
-            FloatTensor.parallelFor(0, nTokens, t -> {
+            AbstractFloatTensor.parallelFor(0, nTokens, t -> {
                 state.hb[t].mapInPlace(value -> value / (float) (1.0 + Math.exp(-value)));
             });
 
             // elementwise multiply with w3(x)
-            FloatTensor.parallelFor(0, nTokens, t -> {
+            AbstractFloatTensor.parallelFor(0, nTokens, t -> {
                 state.hb[t].multiplyInPlace(state.hb2[t]);
             });
 
@@ -336,13 +339,13 @@ public final class Llama {
             weights.w2[l].matmul(nTokens, state.hb, state.xb, dim, config.hiddenDim);
 
             // residual connection
-            FloatTensor.parallelFor(0, nTokens, t -> {
+            AbstractFloatTensor.parallelFor(0, nTokens, t -> {
                 state.x[t].addInPlace(state.xb[t]);
             });
         }
 
         // final rmsnorm
-        FloatTensor.parallelFor(0, nTokens, t -> {
+        AbstractFloatTensor.parallelFor(0, nTokens, t -> {
             rmsnorm(state.x[t], state.x[t], weights.rms_final_weight, dim, config.rmsNormEps);
         });
 
