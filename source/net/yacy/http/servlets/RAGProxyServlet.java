@@ -28,8 +28,13 @@ import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Base64;
 import java.util.Iterator;
-import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 
 import javax.servlet.ServletException;
 import javax.servlet.ServletOutputStream;
@@ -47,9 +52,12 @@ import org.apache.solr.servlet.cache.Method;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.json.JSONTokener;
 
-import net.yacy.ai.OpenAIClient;
+import net.yacy.ai.LLM;
+import net.yacy.cora.federate.solr.SolrType;
 import net.yacy.cora.federate.solr.connector.EmbeddedSolrConnector;
+import net.yacy.cora.protocol.Domains;
 import net.yacy.search.Switchboard;
 import net.yacy.search.schema.CollectionSchema;
 
@@ -70,26 +78,11 @@ import net.yacy.search.schema.CollectionSchema;
  */
 public class RAGProxyServlet extends HttpServlet {
 
-    private static final long serialVersionUID = 3411544789759603107L;
+    private static final long serialVersionUID = 3411544789759643137L;
 
-    // private static Boolean LLM_ENABLED = false;
-    // private static Boolean LLM_CONTROL_OLLAMA = true;
-    // private static Boolean LLM_ATTACH_QUERY = false; // instructs the proxy to
-    // attach the prompt generated to do the RAG search
-    // private static Boolean LLM_ATTACH_REFERENCES = false; // instructs the proxy
-    // to attach a list of sources that had been used in RAG
-    // private static String LLM_LANGUAGE = "en"; // used to select proper language
-    // in RAG augmentation
     private static String LLM_SYSTEM_PREFIX = "\n\nYou may receive additional expert knowledge in the user prompt after a 'Additional Information' headline to enhance your knowledge. Use it only if applicable.";
     private static String LLM_USER_PREFIX = "\n\nAdditional Information:\n\nbelow you find a collection of texts that might be useful to generate a response. Do not discuss these documents, just use them to answer the question above.\n\n";
-    private static String LLM_API_HOST = "http://localhost:11434"; // Ollama port; install ollama from
-                                                                   // https://ollama.com/
-    private static String LLM_QUERY_MODEL = "llama3.2:1b";
-    private static String LLM_ANSWER_MODEL = "llama3.2:3b"; // or "phi3:3.8b" i.e. on a Raspberry Pi 5
-    private static Boolean LLM_API_MODEL_OVERWRITING = true; // if true, the value configured in YaCy overwrites the
-                                                             // client model
-    private static String LLM_API_KEY = ""; // not required; option to use this class to use a OpenAI API
-
+    
     @Override
     public void service(ServletRequest request, ServletResponse response) throws IOException, ServletException {
         response.setContentType("application/json;charset=utf-8");
@@ -102,6 +95,13 @@ public class RAGProxyServlet extends HttpServlet {
         hresponse.setHeader("Access-Control-Allow-Methods", "POST, GET, OPTIONS, DELETE");
         hresponse.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
 
+        final String clientIP = hrequest.getRemoteAddr();
+        final boolean localhostAccess = Domains.isLocalhost(clientIP);
+        if (!localhostAccess) {
+            // we will introduce a rate limit for non-localhost later, for now we just don't allow it
+            hresponse.sendError(HttpServletResponse.SC_FORBIDDEN);
+        }
+        
         final Method reqMethod = Method.getMethod(hrequest.getMethod());
         if (reqMethod == Method.OTHER) {
             // required to handle CORS
@@ -131,43 +131,55 @@ public class RAGProxyServlet extends HttpServlet {
         try {
             // get system message and user prompt
             bodyObject = new JSONObject(body);
+            // get chat functions
+            String model = bodyObject.optString("model", LLM.LLMUsage.chat.name());
+            //Double temperature = bodyObject.optDouble("temperature", 0.0);
+            //int max_tokens = bodyObject.optInt("max_tokens", 1024);
+            //boolean stream = bodyObject.optBoolean("stream", false);
+
+            // resolve true model name from configuration
+            LLM.LLMUsage usage = LLM.LLMUsage.chat;
+            try {usage = LLM.LLMUsage.valueOf(model);} catch (IllegalArgumentException e) {}
+            LLM.LLMModel llm4Chat = LLM.llmFromUsage(usage);
+            LLM.LLMModel llm4tldr = LLM.llmFromUsage(LLM.LLMUsage.tldr);
+            bodyObject.put("model", llm4Chat.model); // replace the model with the decoded model name
+            
+            // get messages and prepare user message attachments
             JSONArray messages = bodyObject.optJSONArray("messages");
-            JSONObject systemObject = messages.getJSONObject(0);
-            String system = systemObject.optString("content", ""); // the system prompt
-            JSONObject userObject = messages.getJSONObject(messages.length() - 1);
-            String user = userObject.optString("content", ""); // this is the latest prompt
-
-            // modify system and user prompt here in bodyObject to enable RAG
-            String query = this.searchWordsForPrompt(LLM_QUERY_MODEL, user);
-            out.print(responseLine("Searching for '" + query + "'\n\n").toString() + "\n");
-            out.flush();
-            LinkedHashMap<String, String> searchResults = searchResults(query, 4);
-            out.print(responseLine("Using the following sources for RAG:\n\n").toString() + "\n");
-            out.flush();
-            for (String s : searchResults.keySet()) {
-                out.print(responseLine("- `" + s + "`\n").toString() + "\n");
-                out.flush();
+            for (int i = 0; i < messages.length(); i++) {
+                JSONObject message = messages.getJSONObject(i);
+                if (message.optString("role", "").equals("user")) {
+                    UserObject userObject = new UserObject(message);
+                    userObject.attachAttachment(LLM_USER_PREFIX);
+                }
             }
-            out.print(responseLine("\n").toString());
-            out.flush();
-            system += LLM_SYSTEM_PREFIX;
-            user += LLM_USER_PREFIX;
-            for (String s : searchResults.values()) user += s + "\n\n";
-            systemObject.put("content", system);
-            userObject.put("content", user);
-
-            if (LLM_API_MODEL_OVERWRITING) bodyObject.put("model", LLM_ANSWER_MODEL);
-
+            UserObject userObject = new UserObject(messages.getJSONObject(messages.length() - 1));
+            String user = userObject.getContentText(); // this is the latest prompt
+            boolean rag = userObject.getSearch();
+            //List<DataURL> data_urls = userObject.getContentAttachments(); // this list is a copy of the content data_urls
+            
+            // RAG
+            String searchResultQuery = "";
+            String searchResultMarkdown = "";
+            if (rag) {
+                // modify system and user prompt here in bodyObject to enable RAG
+                searchResultQuery = this.searchWordsForPrompt(llm4tldr.llm, llm4tldr.model, user);
+                searchResultMarkdown = searchResultsAsMarkdown(searchResultQuery, 4);
+                user += LLM_USER_PREFIX;
+                user += searchResultMarkdown;
+                userObject.setContentText(user);
+            }
+            
             // write back modified bodyMap to body
             body = bodyObject.toString();
 
             // Open request to back-end service
-            URL url = new URI(LLM_API_HOST + "/v1/chat/completions").toURL();
-            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            final URL url = new URI(llm4Chat.llm.hoststub + "/v1/chat/completions").toURL();
+            final HttpURLConnection conn = (HttpURLConnection) url.openConnection();
             conn.setRequestMethod("POST");
             conn.setRequestProperty("Content-Type", "application/json");
-            if (!LLM_API_KEY.isEmpty()) {
-                conn.setRequestProperty("Authorization", "Bearer " + LLM_API_KEY);
+            if (!llm4Chat.llm.api_key.isEmpty()) {
+                conn.setRequestProperty("Authorization", "Bearer " + llm4Chat.llm.api_key);
             }
             conn.setDoOutput(true);
 
@@ -175,34 +187,229 @@ public class RAGProxyServlet extends HttpServlet {
             try (OutputStream os = conn.getOutputStream()) {
                 os.write(body.getBytes());
                 os.flush();
-            }
+            } // here we wait for the response from upstream
 
             // write back response of the back-end service to the client; use status of
             // backend-response
-            int status = conn.getResponseCode();
+            final int status = conn.getResponseCode();
             // String rmessage = conn.getResponseMessage();
             hresponse.setStatus(status);
 
             if (status == 200) {
-                // read the response of the back-end line-by-line and write it to the client line-by-line
-                BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream()));
-                String inputLine;
-                while ((inputLine = in.readLine()) != null) {
-                    out.print(inputLine); // i.e. data:
-                                          // {"id":"chatcmpl-69","object":"chat.completion.chunk","created":1715908287,"model":"llama3:8b","system_fingerprint":"fp_ollama","choices":[{"index":0,"delta":{"role":"assistant","content":"ߘ"},"finish_reason":null}]}
-                    out.flush();
-                }
-                in.close();
+                final BlockingQueue<String> inputQueue = new LinkedBlockingQueue<>();
+                final String POISON = "POISON"; 
+                Thread readerThread = new Thread(() -> {
+                    // read the response of the back-end line-by-line and push it to a stack concurrently
+                    try {
+                        final BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+                        String inputLine;
+                        while ((inputLine = in.readLine()) != null) {inputQueue.put(inputLine);}
+                        in.close();
+                        inputQueue.put(POISON);
+                    } catch (IOException | InterruptedException e) {
+                    } finally {
+                        try {inputQueue.put(POISON);} catch (InterruptedException e) {}
+                    }
+                });
+                readerThread.start();
+                
+                // read the stack line-by-line and write it to the client line-by-line
+                try {
+                    String inputLine;
+                    int count = 0;
+                    while (!(inputLine = inputQueue.take()).equals(POISON)) {
+                        if (count == 0 && searchResultMarkdown.length() > 0) {
+                            // for the first line we modify the data line to integrate the search result as file
+                            int p = inputLine.indexOf('{');
+                            if (p > 0) {
+                                JSONObject j = new JSONObject(new JSONTokener(inputLine.substring(p)));
+                                j.put("search-filename", "search_result_"+ searchResultQuery.replace(' ', '_') + ".md");
+                                j.put("search-text-base64", new String(Base64.getEncoder().encode(searchResultMarkdown.getBytes(StandardCharsets.UTF_8)), StandardCharsets.UTF_8));
+                                inputLine = inputLine.substring(0, p) + j.toString();
+                            }
+                        }
+                        out.println(inputLine); // i.e. data: {"id":"chatcmpl-69","object":"chat.completion.chunk","created":1715908287,"model":"llama3:8b","system_fingerprint":"fp_ollama","choices":[{"index":0,"delta":{"role":"assistant","content":"ߘ"},"finish_reason":null}]}
+                        out.flush();
+                        count++;
+                    }
+                } catch (InterruptedException e) {}
             }
             out.close(); // close this here to end transmission
         } catch (JSONException | URISyntaxException e) {
             throw new IOException(e.getMessage());
         }
     }
+    
+    public final static class DataURL {
+    	private String mimetype;
+    	private byte[] data;
+    	private int signature; // identifier/helper
+    	public DataURL(String data_url) {
+    		if (data_url == null || !data_url.startsWith("data:")) {
+                throw new IllegalArgumentException("data url not valid: it must start with 'data:'");
+            }
+    		int commaIndex = data_url.indexOf(',');
+            if (commaIndex == -1) {
+                throw new IllegalArgumentException("data url not valid: it must contain a comma");
+            }
+            String header = data_url.substring(5, commaIndex); // "image/jpeg;base64"
+            String base64Data = data_url.substring(commaIndex + 1); // "/9j/4AAQSkZJRgABAQEASAB..."
+            String[] headerParts = header.split(";");
+            this.mimetype = headerParts[0]; // i.e. "image/jpeg"
+            this.data = Base64.getDecoder().decode(base64Data);
+            this.signature = base64Data.hashCode();
+    	}
+    	public String getMimetype() {
+    		return this.mimetype;
+    	}
+    	public byte[] getData() {
+    		return this.data;
+    	}
+    	public int getSiganture() {
+    	    return this.signature;
+    	}
+    }
 
-    public static LinkedHashMap<String, String> searchResults(String query, int count) {
-        LinkedHashMap<String, String> a = new LinkedHashMap<>();
-        if (query == null || query.length() == 0 || count == 0) return a;
+    public final static class UserObject {
+        private JSONObject userObject;
+        
+        public UserObject(JSONObject userObject) {
+            this.userObject = userObject;
+        }
+        
+        public void attachAttachment(String prefix) {
+            List<DataURL> data_urls = this.getContentAttachments(); // this list is a copy of the content data_urls
+            
+            // if the data_urls contains a text object, we remove that and inject it into the text prompt
+            for (DataURL data_url: data_urls) {
+                if (!data_url.getMimetype().startsWith("text/")) continue;
+                String user = this.getContentText(); // this is the latest prompt
+                String attachment = new String(data_url.getData(), StandardCharsets.UTF_8);
+                user += prefix;
+                user += attachment;
+                this.setContentText(user);
+                this.removeContentAttachment(data_url);
+            }
+            this.normalize();
+        }
+        
+        public boolean getSearch() {
+            boolean search = this.userObject.optBoolean("search", false);
+            return search;
+        }
+        
+        public String getContentText() {
+            Object content = this.userObject.opt("content");
+            assert content != null;
+            if (content instanceof JSONArray) {
+                JSONArray array = (JSONArray) content;
+                for (int i = 0; i < array.length(); i++) {
+                    JSONObject j = array.optJSONObject(i);
+                    String ctype = j.optString("type");
+                    if (ctype != null && ctype.equals("text")) {
+                        String text = j.optString("text", "");
+                        return text;
+                    }
+                }
+                return "";
+            }
+            assert content instanceof String;
+            return (String) content;
+        }
+        
+        public List<DataURL> getContentAttachments() {
+        	ArrayList<DataURL> list = new ArrayList<>();
+            Object content = this.userObject.opt("content");
+            assert content != null;
+            if (content instanceof JSONArray) {
+                JSONArray array = (JSONArray) content;
+                for (int i = 0; i < array.length(); i++) {
+                    JSONObject j = array.optJSONObject(i);
+                    String ctype = j.optString("type");
+                    if (ctype != null && ctype.equals("image_url")) {
+                        JSONObject image_url = j.optJSONObject("image_url");
+                        if (image_url != null) {
+                        	String data_url = image_url.optString("url", "");
+                        	if (data_url.length() > 0) {
+                        		DataURL dataurl = new DataURL(data_url);
+                        		list.add(dataurl);
+                        	}
+                        }
+                    }
+                }
+            }
+            return list;
+        }
+        
+        public void removeContentAttachment(final DataURL delete_data_url) {
+            Object content = this.userObject.opt("content");
+            assert content != null;
+            if (content instanceof JSONArray) {
+                JSONArray array = (JSONArray) content;
+                arrayloop: for (int i = 0; i < array.length(); i++) {
+                    JSONObject j = array.optJSONObject(i);
+                    String ctype = j.optString("type");
+                    if (ctype != null && ctype.equals("image_url")) {
+                        JSONObject image_url = j.optJSONObject("image_url");
+                        if (image_url != null) {
+                            String data_url = image_url.optString("url", "");
+                            if (data_url.length() > 0) {
+                                DataURL dataurl = new DataURL(data_url);
+                                if (dataurl.getSiganture() == delete_data_url.getSiganture()) {
+                                    array.remove(i);
+                                    break arrayloop;
+                                }
+                            }
+                        }
+                    }
+                }
+                normalize();
+            }
+        }
+        
+        public void normalize() {
+            // make a canonical form, which is that if the user object has no attachment,
+            // then it should not have a "content" object.
+            Object content = this.userObject.opt("content");
+            assert content != null;
+            if (content instanceof String) return;
+            assert content instanceof JSONArray;
+            JSONArray array = (JSONArray) content;
+            assert array.length() > 0;
+            if (array.length() != 1) return;
+            JSONObject j = array.optJSONObject(0);
+            String ctype = j.optString("type");
+            assert ctype != null;
+            assert ctype.equals("text");
+            if (!ctype.equals("text")) return; // but thats wrong
+            String text = j.optString("text", "");
+            // simply replace the content array with the text, because nothing else is there.
+            try {this.userObject.putOpt("content", text);} catch (JSONException e) {}
+        }
+        
+        public void setContentText(String text) {
+            Object content = this.userObject.opt("content");
+            assert content != null;
+            if (content instanceof String) {
+                try {this.userObject.put("content", text);} catch (JSONException e) {}
+                return;
+            }
+            assert content instanceof JSONArray;
+            JSONArray array = (JSONArray) content;
+            for (int i = 0; i < array.length(); i++) {
+                JSONObject j = array.optJSONObject(i);
+                String ctype = j.optString("type");
+                if (ctype != null && ctype.equals("text")) {
+                    try {j.putOpt("text", text);} catch (JSONException e) {}
+                    return;
+                }
+            }
+        }
+    }
+    
+    public static JSONArray searchResults(String query, int count, final boolean includeSnippet) {
+        final JSONArray results = new JSONArray();
+        if (query == null || query.length() == 0 || count == 0) return results;
         Switchboard sb = Switchboard.getSwitchboard();
         EmbeddedSolrConnector connector = sb.index.fulltext().getDefaultEmbeddedConnector();
         // construct query
@@ -213,7 +420,7 @@ public class RAGProxyServlet extends HttpServlet {
         params.setFacet(false);
         params.clearSorts();
         params.setFields(CollectionSchema.sku.getSolrFieldName(), CollectionSchema.text_t.getSolrFieldName());
-        params.setIncludeScore(false);
+        params.setIncludeScore(true);
         params.set("df", CollectionSchema.text_t.getSolrFieldName());
 
         // query the server
@@ -221,25 +428,67 @@ public class RAGProxyServlet extends HttpServlet {
             final SolrDocumentList sdl = connector.getDocumentListByParams(params);
             Iterator<SolrDocument> i = sdl.iterator();
             while (i.hasNext()) {
-                SolrDocument doc = i.next();
-                String url = (String) doc.getFieldValue(CollectionSchema.sku.getSolrFieldName());
-                String text = (String) doc.getFieldValue(CollectionSchema.text_t.getSolrFieldName());
-                a.put(url, text);
+                try {
+                    SolrDocument doc = i.next();
+                    final JSONObject result = new JSONObject(true);
+                    String url = (String) doc.getFieldValue(CollectionSchema.sku.getSolrFieldName());
+                    result.put("url", url == null ? "" : url.trim());
+                    String title = getOneString(doc, CollectionSchema.title);
+                    result.put("title", title == null ? "" : title.trim());
+                    if (includeSnippet) {
+                        String text = (String) doc.getFieldValue(CollectionSchema.text_t.getSolrFieldName());
+                        result.put("snippet", text == null ? "" : text.trim());
+                    }
+                results.put(result);
+                } catch (JSONException e) {
+                    // skip this result
+                }
             }
-            return a;
+            return results;
         } catch (SolrException | IOException e) {
-            return new LinkedHashMap<>();
+            return results;
         }
     }
+    
+    public static String searchResultsAsMarkdown(String query, int count) {
+        JSONArray searchResults = searchResults(query, count, true);
+        StringBuilder sb = new StringBuilder();
+        
+        for (int i  = 0; i < searchResults.length(); i++) {
+            try {
+                JSONObject r = searchResults.getJSONObject(i);
+                String title = r.optString("title", "");
+                String url = r.optString("url", "");
+                String snippet = r.optString("snippet", "");
+                if (title.length() > 0 && snippet.length() > 0) {
+                    sb.append("## ").append(title).append("\n");
+                    sb.append(snippet).append("\n");
+                    if (url.length() > 0) sb.append("Source: ").append(url).append("\n");
+                    sb.append("\n\n");
+                }
+            } catch (JSONException e) {}
+        }
+        return sb.toString();
+    }
+    
+    private static String getOneString(SolrDocument doc, CollectionSchema field) {
+        assert field.isMultiValued();
+        assert field.getType() == SolrType.string || field.getType() == SolrType.text_general;
+        Object r = doc.getFieldValue(field.getSolrFieldName());
+        if (r == null) return "";
+        if (r instanceof ArrayList) {
+            return ((ArrayList<String>) r).get(0);
+        }
+        return r.toString();
+    }
 
-    private String searchWordsForPrompt(String model, String prompt) {
+    private String searchWordsForPrompt(LLM llm, String model, String prompt) {
         StringBuilder query = new StringBuilder();
         String question = "Make a list of a maximum of four search words for the following question; use a JSON Array: " + prompt;
         try {
-            OpenAIClient oaic = new OpenAIClient(LLM_API_HOST);
-            OpenAIClient.Context context = new OpenAIClient.Context(LLM_SYSTEM_PREFIX);
+            LLM.Context context = new LLM.Context(LLM_SYSTEM_PREFIX);
             context.addPrompt(question);
-            String[] a = OpenAIClient.stringsFromChat(oaic.chat(model, context, OpenAIClient.listSchema, 80));
+            String[] a = LLM.stringsFromChat(llm.chat(model, context, LLM.listSchema, 80));
             for (String s : a)
                 query.append(s).append(' ');
             return query.toString().trim();

@@ -28,7 +28,7 @@ import java.lang.invoke.VarHandle;
 
 import net.yacy.ai.llama3.Model.GGMLType;
 
-public final class ArrayFloatTensor extends FloatTensor {
+public final class ArrayFloatTensor extends AbstractFloatTensor implements FloatTensor {
 
     public final float[] values;
     private static final VarHandle FLOAT_ARRAY_HANDLE;
@@ -46,7 +46,7 @@ public final class ArrayFloatTensor extends FloatTensor {
     }
 
     public static FloatTensor allocate(final int... dims) {
-        int numberOfElements = FloatTensor.numberOfElements(dims);
+        int numberOfElements = AbstractFloatTensor.numberOfElements(dims);
         return new ArrayFloatTensor(new float[numberOfElements]);
     }
 
@@ -71,13 +71,13 @@ public final class ArrayFloatTensor extends FloatTensor {
     }
 
     @Override
-    public final FloatTensor fillInPlace(final int thisOffset, final int size, final float value) {
+    public final AbstractFloatTensor fillInPlace(final int thisOffset, final int size, final float value) {
         Arrays.fill(this.values, thisOffset, thisOffset + size, value);
         return this;
     }
 
     @Override
-    public final FloatTensor mapInPlace(final int thisOffset, final int size, MapFunction mapFunction) {
+    public final AbstractFloatTensor mapInPlace(final int thisOffset, final int size, MapFunction mapFunction) {
         int endIndex = thisOffset + size;
         for (int i = thisOffset; i < endIndex; ++i) {
             this.values[i] = mapFunction.apply(this.values[i]);
@@ -128,9 +128,9 @@ public final class ArrayFloatTensor extends FloatTensor {
     @Override
     public final void matmul(final FloatTensor that, final FloatTensor out, final int dim0, final int dim1) {
     	if (that instanceof ArrayFloatTensor) {
-    		parallelFor(0, dim0, i -> ((ArrayFloatTensor) out).values[i] = this.dot(i * dim1, that, 0, dim1));
+    	    AbstractFloatTensor.parallelFor(0, dim0, i -> ((ArrayFloatTensor) out).values[i] = this.dot(i * dim1, that, 0, dim1));
     	} else {
-    		parallelFor(0, dim0, i -> out.setFloat(i, this.dot(i * dim1, that, 0, dim1)));
+    	    AbstractFloatTensor.parallelFor(0, dim0, i -> out.setFloat(i, this.dot(i * dim1, that, 0, dim1)));
     	}
     }
     
@@ -139,7 +139,7 @@ public final class ArrayFloatTensor extends FloatTensor {
         if (that.length != out.length) {
             throw new IllegalArgumentException(String.format("that.len=%d, out.len=%d", that.length, out.length));
         }
-        parallelForLong(0, dim0 * context, ti -> {
+        AbstractFloatTensor.parallelForLong(0, dim0 * context, ti -> {
             int idxArr = (int) (ti / dim0);
             int i = (int) (ti % dim0);
             out[idxArr].setFloat(i, this.dot(i * dim1, that[idxArr], 0, dim1));
