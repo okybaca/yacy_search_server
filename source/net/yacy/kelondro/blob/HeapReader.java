@@ -128,11 +128,66 @@ public class HeapReader {
     }
 
     public long mem() {
-        return this.index.mem(); // don't add the memory for free here since then the asserts for memory management don't work
+        return (this.index == null) ? 0 : this.index.mem(); // don't add the memory for free here since then the asserts for memory management don't work
     }
 
     public void optimize() {
-        this.index.optimize();
+        // Optimize and dump index to disk
+        if (this.index != null) {
+            this.index.optimize();
+            
+            // Write index to dump file for later reload
+            try {
+                File dumpFile = this.fingerprintFileIdx;
+                if (dumpFile == null) {
+                    String fingerprint = fingerprintFileHash(this.heapFile);
+                    if (fingerprint != null) {
+                        dumpFile = HeapWriter.fingerprintIndexFile(this.heapFile, fingerprint);
+                    }
+                }
+                
+                // If dump doesn't exist yet, create it
+                if (dumpFile != null && !dumpFile.exists()) {
+                    this.index.dump(dumpFile);
+                    log.info("HeapReader: dumped index for " + this.heapFile.getName() + " to save memory");
+                }
+                
+                // Free the index from memory - will be reloaded on demand
+                this.index.close();
+                this.index = null;
+                
+                log.info("HeapReader: freed index memory for " + this.heapFile.getName());
+            } catch (final IOException e) {
+                log.warn("HeapReader: could not dump/free index for " + this.heapFile.getName() + ": " + e.getMessage());
+                // Keep index in memory if dump fails
+            }
+        }
+    }
+
+    /**
+     * Reload index from dump if it was freed by optimize()
+     * Called automatically when index is needed but null
+     */
+    private synchronized void ensureIndexLoaded() throws IOException {
+        if (this.index != null) return; // Already loaded
+        
+        log.info("HeapReader: reloading index for " + this.heapFile.getName() + " from dump");
+        
+        File dumpFile = this.fingerprintFileIdx;
+        if (dumpFile == null || !dumpFile.exists()) {
+            String fingerprint = fingerprintFileHash(this.heapFile);
+            if (fingerprint != null) {
+                dumpFile = HeapWriter.fingerprintIndexFile(this.heapFile, fingerprint);
+            }
+        }
+        
+        if (dumpFile != null && dumpFile.exists()) {
+            this.index = new HandleMap(dumpFile);
+            log.info("HeapReader: reloaded index for " + this.heapFile.getName() + " from dump");
+        } else {
+            // Fallback: reload from BLOB file
+            this.initIndexReadFromHeap();
+        }
     }
 
     protected byte[] normalizeKey(byte[] key) {
