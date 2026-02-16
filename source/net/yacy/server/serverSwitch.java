@@ -57,6 +57,10 @@ import net.yacy.peers.Seed;
 import net.yacy.search.SwitchboardConstants;
 
 public class serverSwitch {
+    public enum SaveConfigOrigin {
+        UI,
+        BOT
+    }
 
     // configuration management
     private final File configFile;
@@ -72,6 +76,7 @@ public class serverSwitch {
     private YaCyHttpServer httpserver; // implemented HttpServer
     private final ConcurrentMap<String, Integer> upnpPortMap = new ConcurrentHashMap<>();
     private boolean isConnectedViaUpnp;
+    private static final ThreadLocal<SaveConfigOrigin> saveOriginContext = ThreadLocal.withInitial(() -> SaveConfigOrigin.BOT);
 
     public serverSwitch(final File dataPath, final File appPath, final String initPath, final String configPath) {
         // we initialize the switchboard with a property file,
@@ -112,17 +117,13 @@ public class serverSwitch {
             }
         });
 
-        // remove all values from config that do not appear in init
+        /*
+         * Keep unknown keys from yacy.conf.
+         * Some dynamic features (for example ai.tools.* settings) intentionally
+         * store keys that are not present in defaults/yacy.init.
+         */
         this.configRemoved = new ConcurrentHashMap<>();
-        final Iterator<String> i = this.configProps.keySet().iterator();
         String key;
-        while (i.hasNext()) {
-            key = i.next();
-            if (!(initProps.containsKey(key))) {
-                this.configRemoved.put(key, this.configProps.get(key));
-                i.remove();
-            }
-        }
 
         // merge new props from init to config
         // this is necessary for migration, when new properties are attached
@@ -149,7 +150,7 @@ public class serverSwitch {
 
         // save result; this may initially create a config file after
         // initialization
-        this.saveConfig();
+        this.saveConfigBot();
 
         // init thread control
         this.workerThreads = new TreeMap<>();
@@ -298,7 +299,11 @@ public class serverSwitch {
         // set the value
         final String oldValue = this.configProps.put(key, value);
         if (oldValue == null || !value.equals(oldValue)) {
-            this.saveConfig();
+            if (saveOriginContext.get() == SaveConfigOrigin.UI) {
+                this.saveConfigUI();
+            } else {
+                this.saveConfigBot();
+            }
         }
     }
 
@@ -496,9 +501,34 @@ public class serverSwitch {
     /**
      * write the changes to permanent storage (File)
      */
-    private void saveConfig() {
+    public void saveConfigUI() {
+        this.saveConfig(SaveConfigOrigin.UI);
+    }
+
+    public void saveConfigBot() {
+        this.saveConfig(SaveConfigOrigin.BOT);
+    }
+
+    private void saveConfig(final SaveConfigOrigin origin) {
         final ConcurrentMap<String, String> configPropsCopy = new ConcurrentHashMap<>(this.configProps);
         FileUtils.saveMap(this.configFile, configPropsCopy, this.configComment);
+        if (this.log != null && this.log.isFine()) {
+            this.log.fine("Saved config to " + this.configFile + " (origin=" + origin + ")");
+        }
+    }
+
+    public static SaveConfigOrigin pushSaveConfigOriginUI() {
+        final SaveConfigOrigin previous = saveOriginContext.get();
+        saveOriginContext.set(SaveConfigOrigin.UI);
+        return previous;
+    }
+
+    public static void popSaveConfigOrigin(final SaveConfigOrigin previous) {
+        if (previous == null) {
+            saveOriginContext.remove();
+        } else {
+            saveOriginContext.set(previous);
+        }
     }
 
     /**

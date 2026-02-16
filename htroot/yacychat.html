@@ -83,6 +83,21 @@
         color: #ffffff;
         border: 1px solid #2c3e50;
       }
+
+      /* --- TOOL: Tool Call Output --- */
+      .chat-turn.tool {
+        background-color: #f0f7e8;
+        border-left-width: 5px;
+        border-left-style: solid;
+        border-color: #b7d7a8;
+        color: #24421a;
+      }
+
+      .chat-turn.tool legend {
+        background: #3d6b2f;
+        color: #ffffff;
+        border: 1px solid #3d6b2f;
+      }
     
       /* --- SYSTEM: Log Entry Style --- */
       .chat-turn.system {
@@ -145,6 +160,68 @@
       .think-content {
         color: #394b59;
         font-size: 0.85rem;
+      }
+
+      .toolcalls-popover {
+        position: absolute;
+        z-index: 20;
+        top: 24px;
+        right: 8px;
+        min-width: 280px;
+        max-width: min(560px, calc(100vw - 40px));
+        max-height: 380px;
+        overflow: auto;
+        border: 1px solid #c3cbd9;
+        border-radius: 6px;
+        background: #eef2f7;
+        box-shadow: 3px 3px 0px rgba(0,0,0,0.15);
+        padding: 8px 10px;
+      }
+
+      .toolcalls-popover-header {
+        font-weight: 700;
+        margin-bottom: 6px;
+      }
+
+      .toolcalls-list {
+        margin-top: 6px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      .toolcall-item {
+        border: 1px solid #d6dbe5;
+        border-radius: 4px;
+        background: #f5f7fb;
+        padding: 6px 8px;
+      }
+
+      .toolcall-name {
+        font-weight: 700;
+        margin-bottom: 4px;
+      }
+
+      .toolcall-args {
+        margin: 0;
+        white-space: pre-wrap;
+        word-break: break-word;
+        font-size: 0.95rem;
+        line-height: 1.4;
+      }
+
+      .toolcall-result-title {
+        margin-top: 6px;
+        margin-bottom: 4px;
+        font-weight: 700;
+      }
+
+      .toolcall-result {
+        margin: 0;
+        white-space: pre-wrap;
+        word-break: break-word;
+        font-size: 0.95rem;
+        line-height: 1.4;
       }
 
       .chat-body.markdown h1,
@@ -292,31 +369,15 @@
         position: relative;
       }
 
-      .attachment-row.has-attachment .attachment-clear {
-        display: inline-flex;
-      }
-      .attachment-row.has-attachment .attachment-button {
-        display: none;
-      }
-      .attachment-row.has-attachment .search-button {
-        display: none;
-      }
-      .attachment-row.search-mode .attachment-button,
-      .attachment-row.search-mode .search-button {
-        display: none;
-      }
-      .attachment-row.search-mode .attachment-clear {
-        display: inline-flex;
-      }
       .attachment-row.loading .attachment-filename {
         font-style: italic;
         color: #6b7a90;
       }
-
       .attachment-button,
       .search-button,
       .copy-button,
-      .user-trim-button {
+      .user-trim-button,
+      .toolcalls-button {
         width: 24px;
         height: 24px;
         border: none;
@@ -335,8 +396,16 @@
       .attachment-button:hover,
       .search-button:hover,
       .copy-button:hover,
-      .user-trim-button:hover {
+      .user-trim-button:hover,
+      .toolcalls-button:hover {
         background: #c3cbd9;
+      }
+      .button-active {
+        background: #337ab7;
+        color: #fff;
+      }
+      .button-active:hover {
+        background: #2b669a;
       }
 
       .attachment-filename {
@@ -347,24 +416,11 @@
         text-overflow: ellipsis;
       }
 
-      .attachment-clear {
-        display: none;
-        width: 24px;
-        height: 24px;
-        border: none;
-        border-radius: 4px;
-        background: #d1d9e6;
+      .search-hint {
+        font-family: 'Roboto Mono', 'Menlo', 'Consolas', monospace;
+        font-size: 0.95rem;
+        white-space: nowrap;
         color: #2c3e50;
-        font-weight: 800;
-        font-size: 1.25rem;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-        transition: background 0.15s, border-color 0.15s, color 0.15s;
-      }
-
-      .attachment-clear:hover {
-        background: #c3cbd9;
       }
 
       .copy-button,
@@ -372,6 +428,20 @@
         position: absolute;
         top: -6px;
         right: 8px;
+      }
+
+      .toolcalls-button {
+        position: static;
+      }
+
+      .toolcall-toolbar {
+        position: absolute;
+        top: -6px;
+        right: 36px;
+        display: inline-flex;
+        flex-direction: row;
+        gap: 4px;
+        align-items: center;
       }
 
       .user-delete-button {
@@ -677,11 +747,9 @@
                     <button type="button" class="search-button" id="searchButton" aria-label="Search">
                       <span class="glyphicon glyphicon-search" aria-hidden="true"></span>
                     </button>
+                    <span class="search-hint" id="searchHint">Attach Search Results</span>
                     <button type="button" class="attachment-button" id="addFileButton" aria-label="Attach a file">
                       <span class="glyphicon glyphicon-paperclip" aria-hidden="true"></span>
-                    </button>
-                    <button type="button" class="attachment-clear" id="clearFileButton" aria-label="Remove attached file">
-                      <span class="glyphicon glyphicon-trash" aria-hidden="true"></span>
                     </button>
                     <span class="attachment-filename" id="attachmentFilename">Attach PNG/JPG or text (.txt/.md/.tex)</span>
                     <input type="file" id="fileInput" class="hidden-file-input" accept="image/png,image/jpeg,text/plain,text/markdown,text/x-tex,application/x-tex,application/x-latex,text/*,.png,.jpg,.jpeg,.txt,.md,.markdown,.tex"/>
@@ -716,12 +784,13 @@
     <script src="js/highlight.min.js"></script>
     <script src="js/marked.umd.js"></script>
     <script src="js/index.umd.min.js"></script>
+    <script src="js/vfs.js"></script>
     <script type="text/javascript">
     const SYSTEM_PROMPT = '#[system_prompt]#';
     const defaultApiHost = '';
 
-    const STORAGE_KEY = 'yacychat_recent_pairs';
-    const SEARCH_DEFAULT_KEY = 'yacychat_search_default';
+    const CHAT_VFS_PATH = '/yacy/chat/chat.json';
+    const SETTINGS_VFS_PATH = '/yacy/chat/settings.json';
     const SEARCH_DEFAULTS = {
         none: 'no',
         local: 'local',
@@ -752,7 +821,6 @@
         searchButton: document.getElementById('searchButton'),
         addFileButton: document.getElementById('addFileButton'),
         attachmentFilename: document.getElementById('attachmentFilename'),
-        clearFileButton: document.getElementById('clearFileButton'),
         attachmentRow: document.getElementById('attachmentRow'),
         clearChatRow: document.getElementById('clearChatRow'),
         clearChatButton: document.getElementById('clearChatButton'),
@@ -774,6 +842,7 @@
     const ALLOWED_MIME_TYPES = new Set([...IMAGE_MIME_TYPES, ...TEXT_MIME_TYPES, 'text/*']);
     const ALLOWED_EXTENSIONS = new Set([...IMAGE_EXTENSIONS, ...TEXT_EXTENSIONS]);
     const FILE_ACCEPT_TYPES = [...ALLOWED_MIME_TYPES, ...ALLOWED_EXTENSIONS].join(',');
+
 
     if (dom.fileInput) {
         dom.fileInput.setAttribute('accept', FILE_ACCEPT_TYPES);
@@ -966,18 +1035,31 @@
         return result;
     }
 
+    function stripToolProtocolMarkup(text) {
+        if (!text || typeof text !== 'string') return text || '';
+        // Remove legacy/model-emitted tool protocol snippets like:
+        // <function=name>
+        // <parameter=key>
+        // value
+        let cleaned = text.replace(/^\s*<function=[^>\n]+>\s*$[\s\S]*?(?=^\s*$|$)/gim, '');
+        cleaned = cleaned.replace(/^\s*<parameter=[^>\n]+>\s*$[\s\S]*?(?=^\s*$|$)/gim, '');
+        // Collapse excessive blank lines introduced by stripping.
+        cleaned = cleaned.replace(/\n{3,}/g, '\n\n');
+        return cleaned;
+    }
+
     function stripThinkFromContent(content) {
-        if (typeof content === 'string') return stripThinkBlocks(content);
+        if (typeof content === 'string') return stripToolProtocolMarkup(stripThinkBlocks(content));
         if (Array.isArray(content)) {
             return content.map(part => {
                 if (part?.type === 'text' && typeof part.text === 'string') {
-                    return { ...part, text: stripThinkBlocks(part.text) };
+                    return { ...part, text: stripToolProtocolMarkup(stripThinkBlocks(part.text)) };
                 }
                 return part;
             });
         }
         if (content && typeof content === 'object' && typeof content.text === 'string') {
-            return { ...content, text: stripThinkBlocks(content.text) };
+            return { ...content, text: stripToolProtocolMarkup(stripThinkBlocks(content.text)) };
         }
         return content;
     }
@@ -1143,7 +1225,7 @@
     }
 
     function appendMessage(role, text, opts = {}) {
-        const { skipScroll = false, skipVisibilityUpdate = false, attachment = null, messageIndex = undefined } = opts;
+        const { skipScroll = false, skipVisibilityUpdate = false, attachment = null, messageIndex = undefined, toolCalls = null, toolResults = null } = opts;
         const entry = document.createElement('fieldset');
         entry.className = `chat-turn ${role}`;
         if (role === 'assistant' || role === 'user') {
@@ -1154,6 +1236,8 @@
             legend.textContent = 'Assistant';
         } else if (role === 'user') {
             legend.textContent = 'User';
+        } else if (role === 'tool') {
+            legend.textContent = 'Tool';
         } else {
             legend.textContent = 'System';
         }
@@ -1172,7 +1256,6 @@
             attachmentContainer.appendChild(createAttachmentChip(attachment));
             entry.appendChild(attachmentContainer);
         }
-
         dom.messages.appendChild(entry);
         if (typeof opts.messageIndex === 'number') {
             entry.dataset.messageIndex = String(opts.messageIndex);
@@ -1185,6 +1268,56 @@
             copyBtn.innerHTML = '<span class="glyphicon glyphicon-copy" aria-hidden="true"></span>';
             copyBtn.addEventListener('click', () => copyAssistant(body));
             entry.appendChild(copyBtn);
+            if (Array.isArray(toolCalls) && toolCalls.length > 0) {
+                const toolbar = document.createElement('div');
+                toolbar.className = 'toolcall-toolbar';
+                const panels = [];
+                const resultsById = new Map();
+                const resultsByName = new Map();
+                if (Array.isArray(toolResults)) {
+                    for (const result of toolResults) {
+                        if (!result) continue;
+                        if (result.id) resultsById.set(result.id, result);
+                        if (result.tool_call_id) resultsById.set(result.tool_call_id, result);
+                        const rname = result?.name || result?.function?.name;
+                        if (rname && !resultsByName.has(rname)) resultsByName.set(rname, result);
+                    }
+                }
+
+                for (let i = 0; i < toolCalls.length; i++) {
+                    const call = toolCalls[i];
+                    if (!call) continue;
+                    const fnName = call?.function?.name || call?.name || 'tool';
+                    const matchedResult = (call.id && resultsById.get(call.id)) || resultsByName.get(fnName) || null;
+
+                    const toolBtn = document.createElement('button');
+                    toolBtn.type = 'button';
+                    toolBtn.className = 'toolcalls-button';
+                    toolBtn.title = `Tool: ${fnName}`;
+                    toolBtn.innerHTML = '<span class="glyphicon glyphicon-wrench" aria-hidden="true"></span>';
+
+                    const toolPanel = createToolCallPanel(call, matchedResult, toolCalls.length, i);
+                    toolPanel.style.display = 'none';
+                    toolPanel.addEventListener('click', evt => evt.stopPropagation());
+                    entry.appendChild(toolPanel);
+                    panels.push(toolPanel);
+
+                    toolBtn.addEventListener('click', event => {
+                        event.stopPropagation();
+                        const open = toolPanel.style.display !== 'none';
+                        for (const panel of panels) panel.style.display = 'none';
+                        toolPanel.style.display = open ? 'none' : 'block';
+                    });
+                    toolbar.appendChild(toolBtn);
+                }
+                entry.appendChild(toolbar);
+
+                document.addEventListener('click', evt => {
+                    if (!entry.contains(evt.target)) {
+                        for (const panel of panels) panel.style.display = 'none';
+                    }
+                });
+            }
         }
         if (role === 'user' && typeof messageIndex === 'number') {
             const trimBtn = document.createElement('button');
@@ -1220,6 +1353,8 @@
         dom.attachmentFilename.textContent = 'Attach PNG/JPG or text (.txt/.md/.tex)';
         dom.attachmentRow.classList.remove('has-attachment');
         dom.attachmentRow.classList.remove('search-mode');
+        dom.searchButton?.classList.remove('button-active');
+        dom.addFileButton?.classList.remove('button-active');
         closeAttachmentPopover();
         if (applyDefault) {
             applySearchDefaultToComposer();
@@ -1229,11 +1364,14 @@
     function setComposerAttachment(attachment) {
         state.searchMode = SEARCH_DEFAULTS.none;
         dom.attachmentRow.classList.remove('search-mode');
+        dom.searchButton?.classList.remove('button-active');
         state.attachment = attachment ? cloneAttachment(attachment) : null;
         if (state.attachment) {
             dom.attachmentFilename.textContent = `Attach File: ${state.attachment.name || 'Attachment'}`;
             dom.attachmentRow.classList.add('has-attachment');
+            dom.addFileButton?.classList.add('button-active');
         } else {
+            dom.addFileButton?.classList.remove('button-active');
             clearAttachment();
         }
     }
@@ -1244,7 +1382,7 @@
         if (isLoading) {
             dom.attachmentFilename.textContent = 'Loading attachment...';
         } else if (!state.attachment) {
-            dom.attachmentFilename.textContent = state.searchMode !== SEARCH_DEFAULTS.none ? 'Attach Search Results' : 'Attach PNG/JPG or text (.txt/.md/.tex)';
+            dom.attachmentFilename.textContent = 'Attach PNG/JPG or text (.txt/.md/.tex)';
         }
     }
 
@@ -1263,9 +1401,11 @@
         state.attachment = null;
         dom.fileInput.value = '';
         dom.attachmentRow.classList.remove('has-attachment');
+        dom.searchButton?.classList.toggle('button-active', state.searchMode !== SEARCH_DEFAULTS.none);
+        dom.addFileButton?.classList.remove('button-active');
         if (state.searchMode !== SEARCH_DEFAULTS.none) {
             dom.attachmentRow.classList.add('search-mode');
-            dom.attachmentFilename.textContent = 'Attach Search Results';
+            dom.attachmentFilename.textContent = 'Attach PNG/JPG or text (.txt/.md/.tex)';
         } else {
             dom.attachmentRow.classList.remove('search-mode');
             dom.attachmentFilename.textContent = 'Attach PNG/JPG or text (.txt/.md/.tex)';
@@ -1290,24 +1430,57 @@
         dom.searchDefaultOptions.style.setProperty('--active', activeIndex < 0 ? 0 : activeIndex);
     }
 
-    function persistSearchDefault() {
+    async function getVfsClient() {
+        if (window.vfs) return window.vfs;
+        if (window.vfsReady) return await window.vfsReady;
+        throw new Error('VFS unavailable');
+    }
+
+    async function readVfsJson(path) {
         try {
-            localStorage.setItem(SEARCH_DEFAULT_KEY, state.searchDefault);
+            const vfs = await getVfsClient();
+            const value = await vfs.get(path);
+            if (value && typeof value === 'object') return value;
+            if (typeof value === 'string' && value.trim()) {
+                if (value.trim() === '[object Object]') return null;
+                try {
+                    return JSON.parse(value);
+                } catch (err) {
+                    return null;
+                }
+            }
+            return null;
         } catch (err) {
-            console.warn('Failed to persist search default', err);
+            if (String(err) === 'Key not found') return null;
+            throw err;
         }
     }
 
-    function loadSearchDefault() {
+    async function writeVfsJson(path, value) {
+        const vfs = await getVfsClient();
+        await vfs.put(path, JSON.stringify(value, null, 2));
+    }
+
+    async function removeVfsPath(path) {
+        const vfs = await getVfsClient();
+        await vfs.rm(path);
+    }
+
+    function persistSearchDefault() {
+        writeVfsJson(SETTINGS_VFS_PATH, { search_default: state.searchDefault }).catch(err => {
+            console.warn('Failed to persist search default', err);
+        });
+    }
+
+    async function loadSearchDefault() {
         let stored = null;
         try {
-            stored = localStorage.getItem(SEARCH_DEFAULT_KEY);
+            const settings = await readVfsJson(SETTINGS_VFS_PATH);
+            stored = settings?.search_default || null;
         } catch (err) {
             console.warn('Failed to load search default', err);
         }
-        if (stored === 'none') {
-            stored = SEARCH_DEFAULTS.none;
-        }
+        if (stored === 'none') stored = SEARCH_DEFAULTS.none;
         if (stored && Object.values(SEARCH_DEFAULTS).includes(stored)) {
             state.searchDefault = stored;
         }
@@ -1343,7 +1516,7 @@
         persistConversation();
         updateClearChatVisibility();
         updateSystemToggleButton();
-        setComposerAttachment(targetMessage?.attachment || null);
+        setComposerAttachment(inferAttachmentFromContent(targetMessage?.content) || null);
         dom.input.value = reuseText || '';
         resizeComposer();
         showComposer();
@@ -1400,7 +1573,9 @@
         state.messages = [];
         state.assistantSeen = false;
         state.showSystem = false;
-        localStorage.removeItem(STORAGE_KEY);
+        removeVfsPath(CHAT_VFS_PATH).catch(err => {
+            console.warn('Failed to clear chat history', err);
+        });
         closeAttachmentPopover();
         closeAttachmentModal();
         updateClearChatVisibility();
@@ -1434,7 +1609,7 @@
         }
         for (const msg of payload.messages) {
             if (!msg?.role || msg.content === undefined) continue;
-            state.messages.push({ role: msg.role, content: msg.content });
+            state.messages.push({ ...msg });
         }
         renderConversation();
         persistConversation();
@@ -1465,7 +1640,7 @@
         ensureSystemMessage();
         const sanitizedMessages = state.messages
             .map((msg, index) => {
-                const hasAttachment = msg?.role === 'user' && (Array.isArray(msg.content) || msg.attachment);
+                const hasAttachment = msg?.role === 'user' && Array.isArray(msg.content);
                 const textOnly = index !== currentUserIndex && !hasAttachment;
                 return stripMessageForApi(msg, { textOnly });
             })
@@ -1496,6 +1671,9 @@
         const reader = response.body.getReader();
         const decoder = new TextDecoder('utf-8');
         let assistantText = '';
+        let roundToolCalls = [];
+        let collectedToolCalls = [];
+        let collectedToolResults = [];
         let sawFirstDelta = false;
         let focusShown = false;
         let searchApplied = false;
@@ -1524,13 +1702,14 @@
             for (let i = state.messages.length - 1; i >= 0; i--) {
                 const msg = state.messages[i];
                 if (msg && msg.role === 'user' && msg.search && msg.search !== SEARCH_DEFAULTS.none) {
-                    msg.attachment = {
+                    const attachment = {
                         kind: 'text',
                         name: searchName,
                         dataUrl,
                         mime: 'text/markdown',
                         textContent
                     };
+                    msg.content = buildContentWithAttachment(messageText(msg.content), attachment);
                     delete msg.search;
                     searchApplied = true;
                     break;
@@ -1557,7 +1736,31 @@
             try {
                 const parsed = JSON.parse(clean);
                 applySearchAttachment(parsed);
-                const delta = parsed?.choices?.[0]?.delta?.content;
+                if (Array.isArray(parsed['tool-results']) && parsed['tool-results'].length > 0) {
+                    collectedToolResults = collectedToolResults.concat(normalizeToolResults(parsed['tool-results']));
+                }
+                const choice = parsed?.choices?.[0];
+                const delta = choice?.delta;
+                const finishReason = choice?.finish_reason;
+                const toolDelta = delta?.tool_calls;
+                if (toolDelta) {
+                    roundToolCalls = mergeToolCalls(roundToolCalls, toolDelta);
+                }
+                if (delta?.function_call) {
+                    roundToolCalls = mergeToolCalls(roundToolCalls, [{
+                        index: 0,
+                        type: 'function',
+                        function: delta.function_call
+                    }]);
+                }
+                if (finishReason === 'tool_calls' || finishReason === 'function_call') {
+                    const finalized = normalizeToolCalls(roundToolCalls);
+                    if (finalized.length) {
+                        collectedToolCalls = collectedToolCalls.concat(finalized);
+                    }
+                    roundToolCalls = [];
+                }
+                const contentDelta = delta?.content;
                 if (delta) {
                     if (!sawFirstDelta) {
                         sawFirstDelta = true;
@@ -1567,7 +1770,10 @@
                             onFirstToken();
                         }
                     }
-                    assistantText += delta;
+                    if (contentDelta) {
+                        assistantText += contentDelta;
+                        assistantText = stripToolProtocolMarkup(assistantText);
+                    }
                     if (!thinkAutoClosed && hasThinkCloseOutsideFences(assistantText)) {
                         thinkAutoClosed = true;
                         if (assistantNode) {
@@ -1637,7 +1843,22 @@
             : explicitThinkOpen === 'false'
                 ? false
                 : (thinkAutoClosed && !thinkAutoCloseFired);
-        state.messages.push({ role: 'assistant', content: assistantText, thinkOpen: storedThinkOpen });
+        const normalizedToolCalls = normalizeToolCalls(collectedToolCalls.concat(roundToolCalls));
+        const assistantMessage = {
+            role: 'assistant',
+            content: assistantText,
+            thinkOpen: storedThinkOpen
+        };
+        if (normalizedToolCalls.length) {
+            assistantMessage.tool_calls = normalizedToolCalls;
+            if (collectedToolResults.length) {
+                assistantMessage.tool_results = collectedToolResults;
+            }
+            assistantMessage.display = assistantText && assistantText.trim()
+                ? assistantText
+                : `Tool call: ${normalizedToolCalls.map(call => call?.function?.name || 'tool').join(', ')}`;
+        }
+        state.messages.push(assistantMessage);
         console.debug('[yacychat] response chars', assistantText.length, 'total ms', Math.round(performance.now() - requestStart));
         state.assistantSeen = true;
         persistConversation();
@@ -1653,23 +1874,21 @@
         dom.input.style.height = `${Math.max(minHeight, measured)}px`;
     }
 
+    function buildContentWithAttachment(promptText, attachment) {
+        const parts = [{ type: 'text', text: promptText }];
+        if (attachment?.dataUrl) {
+            parts.push({
+                type: 'image_url',
+                image_url: { url: attachment.dataUrl },
+                filename: attachment.name
+            });
+        }
+        return parts;
+    }
+
     function buildUserMessage(promptText) {
         if (state.attachment) {
-            const parts = [{ type: 'text', text: promptText }];
-            if (state.attachment.kind === 'image' && state.attachment.dataUrl) {
-                parts.push({
-                    type: 'image_url',
-                    image_url: { url: state.attachment.dataUrl },
-                    filename: state.attachment.name
-                });
-            } else if (state.attachment.kind === 'text' && state.attachment.dataUrl) {
-                parts.push({
-                    type: 'image_url',
-                    image_url: { url: state.attachment.dataUrl },
-                    filename: state.attachment.name
-                });
-            }
-            const message = { role: 'user', content: parts };
+            const message = { role: 'user', content: buildContentWithAttachment(promptText, state.attachment) };
             if (state.searchMode !== SEARCH_DEFAULTS.none) {
                 message.search = state.searchMode;
             }
@@ -1691,12 +1910,21 @@
         }
         if (message.role === 'assistant') {
             if (textOnly || typeof content === 'string') {
-                content = stripThinkBlocks(String(content || ''));
+                content = stripToolProtocolMarkup(stripThinkBlocks(String(content || '')));
             } else {
                 content = stripThinkFromContent(content);
             }
         }
         const sanitized = { role: message.role, content };
+        if (message.tool_calls) {
+            sanitized.tool_calls = message.tool_calls;
+        }
+        if (message.tool_call_id) {
+            sanitized.tool_call_id = message.tool_call_id;
+        }
+        if (message.name) {
+            sanitized.name = message.name;
+        }
         if (message.search === true) {
             sanitized.search = SEARCH_DEFAULTS.local;
         } else if (message.search === SEARCH_DEFAULTS.local || message.search === SEARCH_DEFAULTS.global) {
@@ -1726,6 +1954,32 @@
         return '';
     }
 
+    function inferAttachmentFromContent(content) {
+        if (!Array.isArray(content)) return null;
+        const mediaPart = content.find(part => part?.type === 'image_url' && part?.image_url?.url);
+        if (!mediaPart) return null;
+        const dataUrl = String(mediaPart.image_url.url || '');
+        const mimeMatch = dataUrl.match(/^data:([^;]+);/i);
+        const mime = mimeMatch?.[1] || 'application/octet-stream';
+        const name = mediaPart.filename || 'Attachment';
+        const kind = mime.startsWith('image/') ? 'image' : 'text';
+        return { kind, name, mime, dataUrl };
+    }
+
+    function attachmentTextContent(attachment) {
+        if (!attachment || attachment.kind !== 'text') return '';
+        if (typeof attachment.textContent === 'string' && attachment.textContent) return attachment.textContent;
+        if (!attachment.dataUrl || !attachment.dataUrl.startsWith('data:')) return '';
+        const base64 = attachment.dataUrl.split(',', 2)[1] || '';
+        return base64 ? base64ToUtf8(base64) : '';
+    }
+
+    function messageDisplayText(message) {
+        if (!message) return '';
+        if (typeof message.display === 'string') return message.display;
+        return messageText(message.content);
+    }
+
     function renderConversation(options = {}) {
         const { skipScroll = false } = options;
         closeAttachmentPopover();
@@ -1734,7 +1988,7 @@
         for (let i = 0; i < state.messages.length; i++) {
             const msg = state.messages[i];
             if (msg.role === 'system' && !state.showSystem) continue;
-            appendMessage(msg.role, messageText(msg.content), { skipScroll: true, skipVisibilityUpdate: true, messageIndex: i, attachment: msg.attachment });
+            appendMessage(msg.role, messageDisplayText(msg), { skipScroll: true, skipVisibilityUpdate: true, messageIndex: i, attachment: inferAttachmentFromContent(msg.content), toolCalls: msg.tool_calls, toolResults: msg.tool_results });
         }
         updateClearChatVisibility();
         updateSystemToggleButton();
@@ -1743,44 +1997,134 @@
         }
     }
 
-    function persistConversation() {
-        try {
-            const messages = state.messages.map(msg => {
-                if (!msg) return msg;
-                const safe = { ...msg };
-                if (safe.attachment) {
-                    const { kind, name, mime, size } = safe.attachment;
-                    safe.attachment = { kind, name, mime, size };
-                }
-                return safe;
+    function normalizeToolCalls(calls) {
+        if (!Array.isArray(calls)) return [];
+        const stamp = Date.now();
+        return calls
+            .filter(Boolean)
+            .map((call, index) => {
+                const fn = call.function || {};
+                return {
+                    id: call.id || `toolcall_${stamp}_${index}`,
+                    type: call.type || 'function',
+                    function: {
+                        name: fn.name || call.name || 'unknown',
+                        arguments: typeof fn.arguments === 'string' ? fn.arguments : (call.arguments || '')
+                    }
+                };
             });
-            const payload = {
-                model: state.config.model,
-                messages
-            };
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+    }
+
+    function normalizeToolResults(results) {
+        if (!Array.isArray(results)) return [];
+        const stamp = Date.now();
+        return results
+            .filter(Boolean)
+            .map((result, index) => ({
+                id: result.id || result.tool_call_id || `toolres_${stamp}_${index}`,
+                tool_call_id: result.tool_call_id || result.id || '',
+                name: result.name || result?.function?.name || 'unknown',
+                content: typeof result.content === 'string'
+                    ? result.content
+                    : (result?.function?.content ? String(result.function.content) : '')
+            }));
+    }
+
+    function mergeToolCalls(existing, deltaCalls) {
+        const result = Array.isArray(existing) ? [...existing] : [];
+        if (!Array.isArray(deltaCalls)) return result;
+        for (const delta of deltaCalls) {
+            if (!delta) continue;
+            const index = readToolCallIndex(delta);
+            if (index === null || index < 0) continue;
+            if (!result[index]) {
+                result[index] = { id: '', type: delta.type || 'function', function: { name: '', arguments: '' } };
+            }
+            const target = result[index];
+            if (delta.id) target.id = delta.id;
+            if (delta.type) target.type = delta.type;
+            if (delta.function?.name) target.function.name = delta.function.name;
+            if (typeof delta.function?.arguments === 'string' && delta.function.arguments.length > 0) {
+                target.function.arguments = (target.function.arguments || '') + delta.function.arguments;
+            }
+        }
+        return result;
+    }
+
+    function readToolCallIndex(delta) {
+        if (!delta || typeof delta !== 'object' || !Object.prototype.hasOwnProperty.call(delta, 'index')) {
+            return null;
+        }
+        return Number.isInteger(delta.index) ? delta.index : null;
+    }
+
+    function formatToolArguments(raw) {
+        if (typeof raw !== 'string' || !raw.trim()) return '(no arguments)';
+        try {
+            return JSON.stringify(JSON.parse(raw), null, 2);
         } catch (err) {
-            console.warn('Failed to persist conversation', err);
+            return raw;
         }
     }
 
-    function hydrateConversation() {
+    function createToolCallPanel(call, result, totalCount, index) {
+        const panel = document.createElement('div');
+        panel.className = 'toolcalls-popover';
+        panel.style.right = `${36 + (index * 28)}px`;
+
+        const header = document.createElement('div');
+        header.className = 'toolcalls-popover-header';
+        header.textContent = `Tool ${index + 1}/${totalCount}`;
+        panel.appendChild(header);
+
+        const list = document.createElement('div');
+        list.className = 'toolcalls-list';
+        const item = document.createElement('div');
+        item.className = 'toolcall-item';
+
+        const fnName = call?.function?.name || call?.name || 'unknown';
+        const name = document.createElement('div');
+        name.className = 'toolcall-name';
+        name.textContent = fnName;
+        item.appendChild(name);
+
+        const args = document.createElement('pre');
+        args.className = 'toolcall-args';
+        args.textContent = formatToolArguments(call?.function?.arguments || call?.arguments || '');
+        item.appendChild(args);
+
+        if (result) {
+            const responseTitle = document.createElement('div');
+            responseTitle.className = 'toolcall-result-title';
+            responseTitle.textContent = 'Response';
+            item.appendChild(responseTitle);
+
+            const responseBody = document.createElement('pre');
+            responseBody.className = 'toolcall-result';
+            responseBody.textContent = formatToolArguments(result?.content || result?.function?.content || '');
+            item.appendChild(responseBody);
+        }
+
+        list.appendChild(item);
+        panel.appendChild(list);
+        return panel;
+    }
+
+    function persistConversation() {
+        const payload = buildRequestPayload();
+        writeVfsJson(CHAT_VFS_PATH, payload).catch(err => {
+            console.warn('Failed to persist conversation', err);
+        });
+    }
+
+    async function hydrateConversation() {
         let stored = null;
         try {
-            stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
+            stored = await readVfsJson(CHAT_VFS_PATH);
         } catch (err) {
             console.warn('Failed to parse stored conversation', err);
         }
-        if (Array.isArray(stored) && stored.length) {
-            for (const pair of stored) {
-                if (pair?.user) {
-                    state.messages.push({ role: 'user', content: pair.user });
-                }
-                if (pair?.assistant) {
-                    state.messages.push({ role: 'assistant', content: pair.assistant });
-                }
-            }
-        } else if (stored && Array.isArray(stored.messages)) {
+        if (stored && Array.isArray(stored.messages)) {
             state.messages = stored.messages.map(msg => ({ ...msg }));
             if (stored.model) {
                 state.config.model = stored.model;
@@ -1926,7 +2270,7 @@
             };
         }
         if (attachment.kind === 'text') {
-            const { snippet, truncated } = buildTextPreview(attachment.textContent || '');
+            const { snippet, truncated } = buildTextPreview(attachmentTextContent(attachment));
             return {
                 kind: isMarkdown || isTex ? 'markdown' : 'text',
                 name: attachment.name,
@@ -1990,7 +2334,7 @@
                 document.body.removeChild(link);
                 return;
             }
-            const text = attachment.textContent || '';
+            const text = attachmentTextContent(attachment);
             const blob = new Blob([text], { type: attachment.mime || 'text/plain' });
             const url = URL.createObjectURL(blob);
             const link = document.createElement('a');
@@ -2035,7 +2379,7 @@
             `);
             popup.document.close();
         } else if (attachment.kind === 'text') {
-            const blob = new Blob([attachment.textContent || ''], { type: attachment.mime || 'text/plain' });
+            const blob = new Blob([attachmentTextContent(attachment)], { type: attachment.mime || 'text/plain' });
             const url = URL.createObjectURL(blob);
             window.open(url, '_blank');
             setTimeout(() => URL.revokeObjectURL(url), 2000);
@@ -2086,7 +2430,7 @@
             img.style.display = 'block';
             body.appendChild(img);
         } else {
-            const content = attachment?.textContent || preview.text || '';
+            const content = attachmentTextContent(attachment) || preview.text || '';
             if (preview.kind === 'markdown' && markdownSupport.enabled) {
                 const div = document.createElement('div');
                 div.innerHTML = renderMarkdown(content);
@@ -2169,7 +2513,7 @@
         }
         if (preview.kind === 'text' || preview.kind === 'markdown') {
             actions.appendChild(createActionButton('glyphicon-copy', 'Copy snippet', () => copyToClipboard(preview.text || '')));
-            actions.appendChild(createActionButton('glyphicon-list-alt', 'Copy all', () => copyToClipboard(attachment.textContent || preview.text || '')));
+            actions.appendChild(createActionButton('glyphicon-list-alt', 'Copy all', () => copyToClipboard(attachmentTextContent(attachment) || preview.text || '')));
         }
         popover.appendChild(actions);
 
@@ -2251,26 +2595,15 @@
         const prompt = dom.input.value.trim();
         if (!prompt) return;
         ensureSystemMessage();
-        const userAttachment = cloneAttachment(state.attachment);
         const userMessage = buildUserMessage(prompt);
-        if (userAttachment) {
-            userMessage.attachment = userAttachment;
-        }
         // add user message to state immediately so edit/trim is available right away
-        const userEntry = {
-            role: 'user',
-            content: userMessage.content,
-            attachment: userAttachment
-        };
-        if (state.searchMode !== SEARCH_DEFAULTS.none) {
-            userEntry.search = state.searchMode;
-        }
+        const userEntry = { ...userMessage };
         state.messages.push(userEntry);
         const userIndex = state.messages.length - 1;
         const preview = formatUserPreview(prompt);
         state.busy = true;
         dom.sendButton.disabled = true;
-        appendMessage('user', preview, { attachment: userAttachment, messageIndex: userIndex });
+        appendMessage('user', preview, { attachment: inferAttachmentFromContent(userEntry.content), messageIndex: userIndex });
         dom.input.value = '';
         clearAttachment();
         resizeComposer();
@@ -2288,17 +2621,32 @@
     });
 
     dom.addFileButton.addEventListener('click', () => {
+        if (state.attachment) {
+            clearAttachment({ applyDefault: false });
+            return;
+        }
+        if (state.searchMode !== SEARCH_DEFAULTS.none) {
+            setSearchModeActive(SEARCH_DEFAULTS.none);
+        }
+        dom.addFileButton.classList.add('button-active');
         dom.fileInput.click();
+        window.setTimeout(() => {
+            window.addEventListener('focus', () => {
+                if (!state.attachment && !dom.fileInput.value) {
+                    dom.addFileButton.classList.remove('button-active');
+                }
+            }, { once: true });
+        }, 0);
     });
     dom.searchButton?.addEventListener('click', () => {
+        if (state.searchMode !== SEARCH_DEFAULTS.none) {
+            clearAttachment({ applyDefault: false });
+            return;
+        }
         const mode = state.searchDefault === SEARCH_DEFAULTS.none ? SEARCH_DEFAULTS.local : state.searchDefault;
         setSearchModeActive(mode);
     });
     dom.fileInput.addEventListener('change', handleFileChange);
-    dom.clearFileButton.addEventListener('click', () => {
-        const allowDefault = !(state.searchMode !== SEARCH_DEFAULTS.none && !state.attachment);
-        clearAttachment({ applyDefault: allowDefault });
-    });
     dom.clearChatButton?.addEventListener('click', clearChatHistory);
     dom.downloadChatButton?.addEventListener('click', downloadChat);
     dom.uploadChatButton?.addEventListener('click', () => dom.uploadChatInput?.click());
@@ -2356,11 +2704,20 @@
     });
     window.addEventListener('resize', resizeComposer);
 
-    loadSearchDefault();
-    hydrateConversation();
-    updateSystemToggleButton();
-    resizeComposer();
-    updateClearChatVisibility();
+    async function initializeChat() {
+        await loadSearchDefault();
+        await hydrateConversation();
+        updateSystemToggleButton();
+        resizeComposer();
+        updateClearChatVisibility();
+    }
+
+    initializeChat().catch(err => {
+        console.warn('Failed to initialize chat from VFS', err);
+        updateSystemToggleButton();
+        resizeComposer();
+        updateClearChatVisibility();
+    });
     </script>
 
     #%env/templates/footer.template%#
