@@ -199,6 +199,24 @@ public class TextSnippetTest {
         assertTrue ("number (.) broken up",sniptxt.contains("1.83"));
         assertTrue ("number (,) broken up",sniptxt.contains("3,14"));
     }
+
+    @Test
+    public void testDescriptionlineRemovesSuspiciousJavaScriptBraceBlock() throws MalformedURLException {
+        final String rawtestline = "Springe zur Suche Springe zum Fußbereich { this.mobileMainNavHeight = el.getBoundingClientRect().height; }); } }";
+        final DigestURL url = new DigestURL("http://localhost/page.html");
+        final QueryGoal qg = new QueryGoal("Suche");
+
+        final TextSnippet ts = new TextSnippet(
+                url,
+                rawtestline,
+                true,
+                TextSnippet.ResultClass.SOURCE_METADATA, "");
+
+        final String sniptxt = ts.descriptionline(qg);
+        assertTrue(sniptxt.contains("Springe zur Suche"));
+        assertFalse(sniptxt.contains("getBoundingClientRect"));
+        assertFalse(sniptxt.contains("mobileMainNavHeight"));
+    }
     
 	/**
 	 * Run text snippet extraction from a given plain text file.

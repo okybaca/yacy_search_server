@@ -395,27 +395,9 @@ public final class TransformerWriter extends Writer {
             if (this.inSingleQuote) {
                 this.buffer.append(c);
                 if (c == singlequote) this.inSingleQuote = false;
-                // check error cases
-                if ((c == rb) && (this.buffer.length() > 0 && this.buffer.charAt(0) == lb)) {
-                    this.inSingleQuote = false;
-                    // the tag ends here. after filtering: pass on
-                    filtered = this.tokenProcessor(this.buffer.getChars(), singlequote);
-                    if (this.out != null) { this.out.write(filtered); }
-                    // this.buffer = new serverByteBuffer();
-                    this.buffer.reset();
-                }
             } else if (this.inDoubleQuote) {
                 this.buffer.append(c);
                 if (c == doublequote) this.inDoubleQuote = false;
-                // check error cases
-                if (c == rb && this.buffer.length() > 0 && this.buffer.charAt(0) == lb) {
-                    this.inDoubleQuote = false;
-                    // the tag ends here. after filtering: pass on
-                    filtered = this.tokenProcessor(this.buffer.getChars(), doublequote);
-                    if (this.out != null) this.out.write(filtered);
-                    // this.buffer = new serverByteBuffer();
-                    this.buffer.reset();
-                }
             } else if (this.inComment) {
                 this.buffer.append(c);
                 if (c == rb &&
