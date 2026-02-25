@@ -29,6 +29,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.Locale;
 import java.util.List;
 import java.util.Set;
 import java.util.regex.Pattern;
@@ -405,11 +406,82 @@ public class TextSnippet implements Comparable<TextSnippet>, Comparator<TextSnip
             final String errortext,
             final long beginTime) {
         this.urlhash = url.hash();
-        this.line = line;
+        this.line = sanitizeSnippetLine(line);
         this.isMarked = isMarked;
         this.resultStatus = errorCode;
         this.error = errortext;
 		TextSnippet.statistics.addTextSnippetStatistics(url, System.currentTimeMillis() - beginTime, this.resultStatus);
+    }
+
+    /**
+     * Remove suspicious JavaScript code fragments from snippet lines.
+     * This keeps snippets readable even when parser output contains leaked inline script chunks.
+     * @param line raw snippet line
+     * @return sanitized snippet line
+     */
+    static String sanitizeSnippetLine(final String line) {
+        if (line == null || line.indexOf('{') < 0) {
+            return line;
+        }
+        final StringBuilder sanitized = new StringBuilder(line.length());
+        int i = 0;
+        while (i < line.length()) {
+            final char c = line.charAt(i);
+            if (c != '{') {
+                sanitized.append(c);
+                i++;
+                continue;
+            }
+            final int closePos = line.indexOf('}', i + 1);
+            if (closePos < 0) {
+                sanitized.append(c);
+                i++;
+                continue;
+            }
+            final String blockContent = line.substring(i + 1, closePos);
+            if (isLikelyJavaScriptBlock(blockContent)) {
+                if (sanitized.length() > 0 && sanitized.charAt(sanitized.length() - 1) != ' ') {
+                    sanitized.append(' ');
+                }
+                i = closePos + 1;
+                // Also drop immediate trailing JS closure residues, e.g. "); } }"
+                while (i < line.length()) {
+                    final char tail = line.charAt(i);
+                    if (Character.isWhitespace(tail) || tail == ')' || tail == '}' || tail == ';' || tail == '"' || tail == '\'') {
+                        i++;
+                    } else {
+                        break;
+                    }
+                }
+            } else {
+                sanitized.append(line, i, closePos + 1);
+                i = closePos + 1;
+            }
+        }
+        return sanitized.toString().replaceAll("\\s{2,}", " ").trim();
+    }
+
+    private static boolean isLikelyJavaScriptBlock(final String blockContent) {
+        if (blockContent == null) {
+            return false;
+        }
+        final String candidate = blockContent.trim();
+        if (candidate.isEmpty()) {
+            return false;
+        }
+        final String lower = candidate.toLowerCase(Locale.ROOT);
+        return lower.contains(";")
+                || lower.contains("=>")
+                || lower.contains("function")
+                || lower.contains("this.")
+                || lower.contains("window.")
+                || lower.contains("document.")
+                || lower.contains("return ")
+                || lower.contains("var ")
+                || lower.contains("let ")
+                || lower.contains("const ")
+                || lower.contains("$nexttick")
+                || lower.contains("getboundingclientrect");
     }
 
     /**

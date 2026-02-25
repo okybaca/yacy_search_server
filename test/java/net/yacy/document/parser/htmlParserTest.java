@@ -470,4 +470,82 @@ public class htmlParserTest {
         System.out.println("ScraperScriptTagTest: [" + textSource + "] = [" + txt + "]");
         assertEquals(txt, textSource);
     }
+
+    /**
+     * Test for parseToScraper of class htmlParser with quoted attribute content
+     * containing ">" characters (for example Alpine.js x-data arrow functions).
+     * Attribute values must never leak as plain text.
+     */
+    @Test
+    public void testParseToScraper_QuotedAttributeWithGt() throws MalformedURLException, IOException {
+        final AnchorURL url = new AnchorURL("http://localhost/");
+        final String charset = StandardCharsets.UTF_8.name();
+        final String textSource = "Visible text";
+        final String testhtml = "<html><body>"
+                + "<div class=\"relative flex items-start justify-between fluid-container-full\""
+                + " x-data=\"{"
+                + "mainMenuOpen: false,"
+                + "isDesktop: false,"
+                + "mobileMainNavHeight: 384,"
+                + "init() {"
+                + "this.checkIsDesktop();"
+                + "},"
+                + "checkIsDesktop() {"
+                + "this.isDesktop = window.matchMedia('screen and (min-width:1024px)').matches;"
+                + "},"
+                + "closeMainMenu() {"
+                + "this.mainMenuOpen = false;"
+                + "},"
+                + "openMainMenu() {"
+                + "this.mainMenuOpen = true;"
+                + "},"
+                + "onSubMenuIntersect(el) {"
+                + "this.$nextTick(() => {"
+                + "this.mobileMainNavHeight = el.getBoundingClientRect().height;"
+                + "});"
+                + "}"
+                + "}\">"
+                + "<p>" + textSource + "</p>"
+                + "</div>"
+                + "</body></html>";
+
+        final ContentScraper scraper = parseToScraper(url, charset, TagValency.IGNORE, new HashSet<String>(),
+                new VocabularyScraper(), 0, testhtml, 10, 10);
+
+        final String txt = scraper.getText();
+        assertEquals(textSource + ".", txt);
+        assertFalse(txt.contains("getBoundingClientRect"));
+        assertFalse(txt.contains("mobileMainNavHeight"));
+    }
+
+    /**
+     * Test for parseToScraper of class htmlParser with quoted attribute content
+     * containing a comparison using ">" and additional Alpine-style attributes.
+     * Attribute names/values must never leak as plain text.
+     */
+    @Test
+    public void testParseToScraper_QuotedAttributeComparisonGt() throws MalformedURLException, IOException {
+        final AnchorURL url = new AnchorURL("http://localhost/");
+        final String charset = StandardCharsets.UTF_8.name();
+        final String textSource = "Next image";
+        final String testhtml = "<html><body>"
+                + "<button "
+                + "type=\"button\" "
+                + "class=\"splide__arrow splide__arrow--prev absolute left-1 top-1/2 z-10 -translate-y-1/2 lg:left-2.5 [@media(pointer:coarse)]:hidden\" "
+                + "x-show=\"imgModalItems.length > 1\" "
+                + "@click=\"lightboxPrev()\""
+                + ">"
+                + textSource
+                + "</button>"
+                + "</body></html>";
+
+        final ContentScraper scraper = parseToScraper(url, charset, TagValency.IGNORE, new HashSet<String>(),
+                new VocabularyScraper(), 0, testhtml, 10, 10);
+
+        final String txt = scraper.getText();
+        assertTrue(txt.contains(textSource));
+        assertFalse(txt.contains("@click"));
+        assertFalse(txt.contains("lightboxPrev"));
+        assertFalse(txt.contains("imgModalItems.length"));
+    }
 }
