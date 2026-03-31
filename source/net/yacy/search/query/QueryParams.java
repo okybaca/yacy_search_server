@@ -189,6 +189,8 @@ public final class QueryParams {
     public final Bitfield constraint;
     public final boolean allofconstraint;
     protected CacheStrategy snippetCacheStrategy;
+    private boolean snippetFetchFullText;
+    private boolean localSolrOnly;
     public final RankingProfile ranking;
     private final Segment indexSegment;
     public final String clienthost; // this is the client host that starts the query, not a site operator
@@ -300,6 +302,8 @@ public final class QueryParams {
         this.allofconstraint = allofconstraint;
         this.siteexcludes = siteexcludes != null && siteexcludes.isEmpty() ? null: siteexcludes;
         this.snippetCacheStrategy = snippetCacheStrategy;
+        this.snippetFetchFullText = false;
+        this.localSolrOnly = false;
         this.clienthost = host;
         this.remotepeer = null;
         this.starttime = System.currentTimeMillis();
@@ -632,6 +636,9 @@ public final class QueryParams {
         final SolrQuery params = getBasicParams(getFacets, filterQueries);
         int rankingProfile = this.ranking.coeff_date == RankingProfile.COEFF_MAX ? 1 : (this.modifier.sitehash != null || this.modifier.sitehost != null) ? 2 : 0;
         params.setQuery(this.queryGoal.collectionTextQuery().toString());
+        if (this.queryGoal.getIncludeSize() > 1) {
+            params.setParam(DisMaxParams.MM, "1");
+        }
         Ranking actRanking = indexSegment.fulltext().getDefaultConfiguration().getRanking(rankingProfile); // for a by-date ranking select different ranking profile
 
         String fq = actRanking.getFilterQuery();
@@ -655,7 +662,7 @@ public final class QueryParams {
         if (bf.length() > 0) params.setParam("boost", bf); // a boost function extension, see http://wiki.apache.org/solr/ExtendedDisMax#bf_.28Boost_Function.2C_additive.29
         
         // set highlighting query attributes
-        if (this.contentdom == Classification.ContentDomain.TEXT || this.contentdom == Classification.ContentDomain.ALL) {
+        if (!this.snippetFetchFullText && (this.contentdom == Classification.ContentDomain.TEXT || this.contentdom == Classification.ContentDomain.ALL)) {
         	params.setHighlight(true);
         	params.setHighlightFragsize(SearchEvent.SNIPPET_MAX_LENGTH);
             //params.setHighlightRequireFieldMatch();
@@ -804,8 +811,23 @@ public final class QueryParams {
         } else {
             params.setFacet(false);
         }
-        params.setFields("*", "score"); // we need the score for post-ranking
+        params.setFields(buildResultFieldList(this.snippetFetchFullText));
         return params;
+    }
+
+    private String[] buildResultFieldList(final boolean includeTextField) {
+        final ArrayList<String> fields = new ArrayList<>();
+        for (final CollectionSchema field : CollectionSchema.values()) {
+            if (!this.solrSchema.contains(field) || !field.isStored()) {
+                continue;
+            }
+            if (!includeTextField && field == CollectionSchema.text_t) {
+                continue;
+            }
+            fields.add(field.getSolrFieldName());
+        }
+        fields.add("score");
+        return fields.toArray(new String[fields.size()]);
     }
     
     long year = 1000L * 60L * 60L * 24L * 365L;
@@ -986,7 +1008,9 @@ public final class QueryParams {
             context.append(this.tld).append(asterisk);
             context.append(this.inlink).append(asterisk);
             context.append(this.lat).append(asterisk).append(this.lon).append(asterisk).append(this.radius).append(asterisk);
-            context.append(this.snippetCacheStrategy == null ? "null" : this.snippetCacheStrategy.name());
+            context.append(this.snippetCacheStrategy == null ? "null" : this.snippetCacheStrategy.name()).append(asterisk);
+            context.append(this.snippetFetchFullText).append(asterisk);
+            context.append(this.localSolrOnly);
             
             // Note : this.maxSuggestions search parameter do not need to be part of this id, as it has no impact on results themselves
             
@@ -998,6 +1022,22 @@ public final class QueryParams {
             }
             return result;
         }
+    }
+
+    public boolean isSnippetFetchFullText() {
+        return this.snippetFetchFullText;
+    }
+
+    public void setSnippetFetchFullText(final boolean snippetFetchFullText) {
+        this.snippetFetchFullText = snippetFetchFullText;
+    }
+
+    public boolean isLocalSolrOnly() {
+        return this.localSolrOnly;
+    }
+
+    public void setLocalSolrOnly(final boolean localSolrOnly) {
+        this.localSolrOnly = localSolrOnly;
     }
 
     /**

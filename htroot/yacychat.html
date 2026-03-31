@@ -342,6 +342,16 @@
         display: none;
       }
 
+      .search-default-options .global-option,
+      .search-default-options .global-label {
+        display: none;
+      }
+
+      .search-default-options.has-global .global-option,
+      .search-default-options.has-global .global-label {
+        display: flex;
+      }
+
       .composer-main {
         flex: 1;
         display: flex;
@@ -719,22 +729,33 @@
 	  #%env/templates/submenuAI.template%#
     #(/topmenu)#
 
+    #(topmenu)#
+      <script>document.getElementById("greeting-icon").src="env/grafics/invisible.png"</script>
+      <h2 class="yacy"><a href="#[promoteSearchPageGreeting.homepage]#" class="yacylogo"><img src="#[promoteSearchPageGreeting.largeImage]#" alt="#[promoteSearchPageGreeting.imageAlt]#" style="margin: auto;"/></a></h2>
+      <h2 class="yacy">#[promoteChatPageGreeting]#</h2>
+    ::
+      <script>document.getElementById("greeting-icon").src="env/grafics/invisible.png"</script>
+      <h2 class="yacy"><a href="#[promoteSearchPageGreeting.homepage]#" class="yacylogo"><img src="#[promoteSearchPageGreeting.largeImage]#" alt="#[promoteSearchPageGreeting.imageAlt]#" style="margin: auto;"/></a></h2>
+      <h2 class="yacy">#[promoteChatPageGreeting]#</h2>
+    ::
+    #(/topmenu)#
+
     <h2>YaCy Chat</h2>
-    <p>Chat with your configured LLM using the local YaCy settings. Requests are sent to the same host that served this page.</p>
+    <p>This Chat is private. YaCy does not keep any history — only your browser remembers the current conversation.</p>
 
       <div class="chat-panel">
         <div class="chat-flow">
           <div class="search-default-control">
             <span>Default Dialog Augmentation:</span>
-            <div class="search-default-options" id="searchDefaultOptions" role="radiogroup" aria-label="Attach search results by default">
-              <input type="radio" id="searchDefaultNone" name="searchDefault" value="no"/>
-              <label for="searchDefaultNone">no search, allow attachments</label>
-              <input type="radio" id="searchDefaultLocal" name="searchDefault" value="local" checked="checked"/>
-              <label for="searchDefaultLocal">use local search</label>
-              <input type="radio" id="searchDefaultGlobal" name="searchDefault" value="global"/>
-              <label for="searchDefaultGlobal">use global search</label>
-              <span class="search-default-slider" aria-hidden="true"></span>
-            </div>
+<div class="search-default-options" id="searchDefaultOptions" role="radiogroup" aria-label="Attach search results by default">
+               <input type="radio" id="searchDefaultNone" name="searchDefault" value="no"/>
+               <label for="searchDefaultNone">no search, allow attachments</label>
+               <input type="radio" id="searchDefaultLocal" name="searchDefault" value="local" checked="checked"/>
+               <label for="searchDefaultLocal">use local search</label>
+               <input type="radio" id="searchDefaultGlobal" name="searchDefault" value="global" class="global-option"/>
+               <label for="searchDefaultGlobal" class="global-label">use global search</label>
+               <span class="search-default-slider" aria-hidden="true"></span>
+             </div>
           </div>
           <div class="chat-messages" id="chatMessages" aria-live="polite"></div>
           <form id="chatForm">
@@ -788,6 +809,7 @@
     <script type="text/javascript">
     const SYSTEM_PROMPT = '#[system_prompt]#';
     const defaultApiHost = '';
+    const P2P_MODE = #[p2p_mode]# === 1;
 
     const CHAT_VFS_PATH = '/yacy/chat/chat.json';
     const SETTINGS_VFS_PATH = '/yacy/chat/settings.json';
@@ -796,6 +818,7 @@
         local: 'local',
         global: 'global'
     };
+    const SEARCH_OPTIONS = P2P_MODE ? SEARCH_DEFAULTS : { none: 'no', local: 'local' };
 
     const state = {
         messages: [],
@@ -807,7 +830,7 @@
         busy: false,
         attachment: null,
         searchMode: SEARCH_DEFAULTS.none,
-        searchDefault: SEARCH_DEFAULTS.local,
+        searchDefault: P2P_MODE ? SEARCH_DEFAULTS.local : SEARCH_DEFAULTS.local,
         assistantSeen: false,
         showSystem: false
     };
@@ -834,6 +857,15 @@
         searchDefaultLocal: document.getElementById('searchDefaultLocal'),
         searchDefaultGlobal: document.getElementById('searchDefaultGlobal')
     };
+
+    // configure search default options based on P2P mode
+    if (dom.searchDefaultOptions) {
+        if (P2P_MODE) {
+            dom.searchDefaultOptions.classList.add('has-global');
+        } else {
+            dom.searchDefaultOptions.classList.remove('has-global');
+        }
+    }
 
     const IMAGE_MIME_TYPES = new Set(['image/png', 'image/jpeg']);
     const TEXT_MIME_TYPES = new Set(['text/plain', 'text/markdown', 'text/x-tex', 'application/x-tex', 'application/x-latex']);
@@ -1389,13 +1421,19 @@
     function setSearchModeActive(mode) {
         let nextMode = mode;
         if (mode === true) {
-            nextMode = state.searchDefault === SEARCH_DEFAULTS.none ? SEARCH_DEFAULTS.local : state.searchDefault;
+            // validate against available options
+            if (P2P_MODE) {
+                nextMode = state.searchDefault === SEARCH_DEFAULTS.none ? SEARCH_DEFAULTS.local : state.searchDefault;
+            } else {
+                nextMode = state.searchDefault === SEARCH_DEFAULTS.global ? SEARCH_DEFAULTS.local : state.searchDefault;
+            }
         }
         if (!nextMode || nextMode === false) {
             nextMode = SEARCH_DEFAULTS.none;
         }
-        if (nextMode !== SEARCH_DEFAULTS.local && nextMode !== SEARCH_DEFAULTS.global) {
-            nextMode = SEARCH_DEFAULTS.none;
+        // reject global mode when not in P2P
+        if (!P2P_MODE && nextMode === SEARCH_DEFAULTS.global) {
+            nextMode = SEARCH_DEFAULTS.local;
         }
         state.searchMode = nextMode;
         state.attachment = null;
@@ -1415,7 +1453,9 @@
     function applySearchDefaultToComposer() {
         if (!dom.attachmentRow || state.attachment) return;
         if (state.searchDefault !== SEARCH_DEFAULTS.none) {
-            setSearchModeActive(state.searchDefault);
+            // validate search default against available options
+            const validDefault = P2P_MODE ? state.searchDefault : state.searchDefault === SEARCH_DEFAULTS.global ? SEARCH_DEFAULTS.local : state.searchDefault;
+            setSearchModeActive(validDefault);
         } else {
             setSearchModeActive(SEARCH_DEFAULTS.none);
         }
@@ -1423,11 +1463,27 @@
 
     function updateSearchDefaultSlider() {
         if (!dom.searchDefaultOptions) return;
+        // count only visible inputs (exclude hidden global option)
         const inputs = Array.from(dom.searchDefaultOptions.querySelectorAll('input[name="searchDefault"]'));
-        const activeIndex = inputs.findIndex(input => input.checked);
-        const segments = inputs.length || 2;
+        const visibleInputs = inputs.filter(input => {
+            if (input === dom.searchDefaultGlobal) {
+                return dom.searchDefaultOptions.classList.contains('has-global');
+            }
+            return true;
+        });
+        const activeIndex = visibleInputs.findIndex(input => input.checked);
+        const segments = visibleInputs.length || 2;
         dom.searchDefaultOptions.style.setProperty('--segments', segments);
-        dom.searchDefaultOptions.style.setProperty('--active', activeIndex < 0 ? 0 : activeIndex);
+        // map checked input to its index among visible inputs
+        let displayIndex = 0;
+        for (const input of inputs) {
+            if (input === dom.searchDefaultGlobal && !dom.searchDefaultOptions.classList.contains('has-global')) {
+                continue;
+            }
+            if (input.checked) break;
+            displayIndex++;
+        }
+        dom.searchDefaultOptions.style.setProperty('--active', displayIndex);
     }
 
     async function getVfsClient() {
@@ -1481,13 +1537,22 @@
             console.warn('Failed to load search default', err);
         }
         if (stored === 'none') stored = SEARCH_DEFAULTS.none;
-        if (stored && Object.values(SEARCH_DEFAULTS).includes(stored)) {
+        // validate stored default against available options
+        if (!P2P_MODE && stored === SEARCH_DEFAULTS.global) {
+            stored = SEARCH_DEFAULTS.local;
+        }
+        if (stored && Object.values(SEARCH_OPTIONS).includes(stored)) {
             state.searchDefault = stored;
         }
+        // update radio buttons to reflect stored state
         if (dom.searchDefaultNone && state.searchDefault === SEARCH_DEFAULTS.none) {
             dom.searchDefaultNone.checked = true;
         } else if (dom.searchDefaultLocal && state.searchDefault === SEARCH_DEFAULTS.local) {
             dom.searchDefaultLocal.checked = true;
+        } else if (dom.searchDefaultGlobal && !P2P_MODE) {
+            // global not available, fallback to local
+            dom.searchDefaultLocal.checked = true;
+            state.searchDefault = SEARCH_DEFAULTS.local;
         } else if (dom.searchDefaultGlobal && state.searchDefault === SEARCH_DEFAULTS.global) {
             dom.searchDefaultGlobal.checked = true;
         }
@@ -1651,14 +1716,12 @@
             messages: sanitizedUserMessage ? [...sanitizedMessages, sanitizedUserMessage] : sanitizedMessages,
             stream: true
         };
-        console.debug('[yacychat] payload search modes', payload.messages.map(m => ({ role: m.role, search: m.search })));
         const headers = { 'Content-Type': 'application/json' };
         const response = await fetch(state.config.apiHost.replace(/\/$/, '') + '/v1/chat/completions', {
             method: 'POST',
             headers,
             body: JSON.stringify(payload)
         });
-        console.debug('[yacychat] request ms', Math.round(performance.now() - requestStart));
         if (!response.ok) {
             if (response.status === 429) {
                 throw new Error('Rate limit reached: please wait and try again. The server is protecting itself from overload.');
@@ -1696,7 +1759,6 @@
             const searchName = parsed['search-filename'];
             const searchBase64 = parsed['search-text-base64'];
             if (!searchName || !searchBase64) return;
-            console.debug('[yacychat] received search attachment', { searchName, size: searchBase64.length, ms: Math.round(performance.now() - requestStart) });
             const dataUrl = `data:text/markdown;base64,${searchBase64}`;
             const textContent = base64ToUtf8(searchBase64);
             for (let i = state.messages.length - 1; i >= 0; i--) {
@@ -1736,8 +1798,16 @@
             try {
                 const parsed = JSON.parse(clean);
                 applySearchAttachment(parsed);
+                if (Array.isArray(parsed['tool-calls']) && parsed['tool-calls'].length > 0) {
+                    const injectedToolCalls = normalizeToolCalls(parsed['tool-calls']);
+                    if (injectedToolCalls.length > 0) {
+                        collectedToolCalls = injectedToolCalls;
+                        roundToolCalls = [];
+                    }
+                }
                 if (Array.isArray(parsed['tool-results']) && parsed['tool-results'].length > 0) {
-                    collectedToolResults = collectedToolResults.concat(normalizeToolResults(parsed['tool-results']));
+                    const normalizedResults = normalizeToolResults(parsed['tool-results']);
+                    collectedToolResults = collectedToolResults.concat(normalizedResults);
                 }
                 const choice = parsed?.choices?.[0];
                 const delta = choice?.delta;
@@ -1764,7 +1834,7 @@
                 if (delta) {
                     if (!sawFirstDelta) {
                         sawFirstDelta = true;
-                        applyMessageContent(assistantNode, 'assistant', '');
+                        applyMessageContent(assistantNode, 'assistant', 'waiting for an answer...');
                         if (!focusShown && typeof onFirstToken === 'function') {
                             focusShown = true;
                             onFirstToken();
@@ -1798,7 +1868,9 @@
                             }
                         }, 2000);
                     }
-                    applyMessageContent(assistantNode, 'assistant', assistantText);
+                    if (assistantText) {
+                        applyMessageContent(assistantNode, 'assistant', assistantText);
+                    }
                     performAutoScroll();
                 }
             } catch (err) {
@@ -1859,7 +1931,6 @@
                 : `Tool call: ${normalizedToolCalls.map(call => call?.function?.name || 'tool').join(', ')}`;
         }
         state.messages.push(assistantMessage);
-        console.debug('[yacychat] response chars', assistantText.length, 'total ms', Math.round(performance.now() - requestStart));
         state.assistantSeen = true;
         persistConversation();
         updateClearChatVisibility();
@@ -1919,6 +1990,9 @@
         if (message.tool_calls) {
             sanitized.tool_calls = message.tool_calls;
         }
+        if (message.tool_results) {
+            sanitized.tool_results = message.tool_results;
+        }
         if (message.tool_call_id) {
             sanitized.tool_call_id = message.tool_call_id;
         }
@@ -1954,6 +2028,12 @@
         return '';
     }
 
+    function initialAssistantPlaceholder(message) {
+        return message?.search && message.search !== SEARCH_DEFAULTS.none
+            ? 'searching for content...'
+            : 'waiting for an answer...';
+    }
+
     function inferAttachmentFromContent(content) {
         if (!Array.isArray(content)) return null;
         const mediaPart = content.find(part => part?.type === 'image_url' && part?.image_url?.url);
@@ -1972,6 +2052,30 @@
         if (!attachment.dataUrl || !attachment.dataUrl.startsWith('data:')) return '';
         const base64 = attachment.dataUrl.split(',', 2)[1] || '';
         return base64 ? base64ToUtf8(base64) : '';
+    }
+
+    function parseStructuredToolResult(result) {
+        const raw = result?.content || result?.function?.content || '';
+        if (typeof raw !== 'string' || !raw.trim()) return null;
+        try {
+            return JSON.parse(raw);
+        } catch (err) {
+            return null;
+        }
+    }
+
+    function inferAttachmentFromToolResult(result) {
+        const payload = parseStructuredToolResult(result);
+        const name = payload?.['search-filename'];
+        const base64 = payload?.['search-text-base64'];
+        if (!name || !base64) return null;
+        return {
+            kind: 'text',
+            name,
+            dataUrl: `data:text/markdown;base64,${base64}`,
+            mime: 'text/markdown',
+            textContent: base64ToUtf8(base64)
+        };
     }
 
     function messageDisplayText(message) {
@@ -2099,9 +2203,18 @@
             responseTitle.textContent = 'Response';
             item.appendChild(responseTitle);
 
+            const attachment = inferAttachmentFromToolResult(result);
+            if (attachment) {
+                const attachmentContainer = document.createElement('div');
+                attachmentContainer.appendChild(createAttachmentChip(attachment));
+                item.appendChild(attachmentContainer);
+            }
+
             const responseBody = document.createElement('pre');
             responseBody.className = 'toolcall-result';
-            responseBody.textContent = formatToolArguments(result?.content || result?.function?.content || '');
+            responseBody.textContent = attachment
+                ? attachmentTextContent(attachment)
+                : formatToolArguments(result?.content || result?.function?.content || '');
             item.appendChild(responseBody);
         }
 
@@ -2607,7 +2720,7 @@
         dom.input.value = '';
         clearAttachment();
         resizeComposer();
-        const assistantNode = appendMessage('assistant', 'waiting for an answer...');
+        const assistantNode = appendMessage('assistant', initialAssistantPlaceholder(userMessage));
         try {
             await streamChat(userMessage, assistantNode, { onFirstToken: showComposer, includeUserInPayload: false, pushUserToState: false, currentUserIndex: userIndex });
         } catch (err) {
@@ -2659,7 +2772,7 @@
         const target = event.target;
         if (!(target instanceof HTMLInputElement)) return;
         if (target.name !== 'searchDefault') return;
-        if (!Object.values(SEARCH_DEFAULTS).includes(target.value)) return;
+        if (!Object.values(SEARCH_OPTIONS).includes(target.value)) return;
         state.searchDefault = target.value;
         updateSearchDefaultSlider();
         persistSearchDefault();

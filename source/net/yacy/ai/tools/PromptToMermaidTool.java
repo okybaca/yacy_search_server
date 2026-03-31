@@ -200,6 +200,9 @@ public class PromptToMermaidTool implements ToolHandler {
         out.put("mermaid_ascii", mermaidAscii == null ? "" : mermaidAscii);
         out.put("reasoning", reasoning == null ? "" : reasoning);
         out.put("warnings", warnings == null ? new JSONArray() : warnings);
+        if ("success".equals(status)) {
+            out.put("next_tool_hint", "Now use the tool mermaid_to_ascii to visualize this.");
+        }
         if (prompt != null && !prompt.isEmpty()) out.put("prompt_redacted", prompt);
         if (preferredType != null) out.put("preferred_diagram_type", preferredType);
         return out;

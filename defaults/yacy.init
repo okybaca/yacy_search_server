@@ -347,7 +347,8 @@ parser.pdf.individualpages.key=page
 # These strings appear in the Web Mask of the YACY search client
 # Set these Strings to cusomize your peer and give any message to
 # other peer users
-promoteSearchPageGreeting = search...
+promoteSearchPageGreeting = Your Own Search Engine
+promoteChatPageGreeting = Private Chat with Your Own Knowledge
 # if the following property is set to true, the network name is used as greeting
 promoteSearchPageGreeting.useNetworkName = false
 # the following attributes can be used to define a custom image, alternative text and home page on the search page

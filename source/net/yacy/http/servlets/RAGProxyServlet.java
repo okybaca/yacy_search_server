@@ -28,7 +28,6 @@ import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Deque;
 import java.util.List;
-import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedDeque;
 
 import javax.servlet.ServletException;
@@ -69,6 +68,7 @@ import net.yacy.search.Switchboard;
 public class RAGProxyServlet extends HttpServlet {
 
     private static final long serialVersionUID = 3411544789759643137L;
+    private static final int DIRECT_SEARCH_WORD_LIMIT = 40;
 
     public static final String LLM_SYSTEM_PROMPT_DEFAULT = "You are a smart and helpful chatbot. If possible, use friendly emojies.";
     private static final String LLM_USER_PREFIX_DEFAULT = "\n\nAdditional Information:\n\nbelow you find a collection of texts that might be useful to generate a response. Do not discuss these documents, just use them to answer the question above.\n\n";
@@ -169,7 +169,6 @@ public class RAGProxyServlet extends HttpServlet {
             UserObject userObject = null;
             String user = "";
             String ragMode = "no";
-            String userPrompt = "";
             int lastUserIndex = -1;
             for (int i = messages.length() - 1; i >= 0; i--) {
                 JSONObject message = messages.getJSONObject(i);
@@ -181,7 +180,6 @@ public class RAGProxyServlet extends HttpServlet {
             if (lastUserIndex >= 0) {
                 userObject = new UserObject(messages.getJSONObject(lastUserIndex));
                 user = userObject.getContentText(); // this is the latest user prompt
-                userPrompt = user;
                 ragMode = userObject.getSearchMode();
             }
             ConcurrentLog.info("RAGProxy", "ragMode=" + ragMode + " userChars=" + (user == null ? 0 : user.length()));
@@ -194,17 +192,20 @@ public class RAGProxyServlet extends HttpServlet {
                 // modify system and user prompt here in bodyObject to enable RAG
                 final String queryPrefix = sb.getConfig("ai.llm-query-generator-prefix", LLM_QUERY_GENERATOR_PREFIX_DEFAULT);
                 final long queryStart = System.currentTimeMillis();
-                searchResultQuery = RAGAugmentor.searchWordsForPrompt(llm4tldr.llm, llm4tldr.model, queryPrefix + user); // might return null in case any error occurred
-                if (searchResultQuery == null || searchResultQuery.length() == 0) searchResultQuery = user; // in case there is an error we simply search with the prompt
+                if (countWords(user) <= DIRECT_SEARCH_WORD_LIMIT) {
+                    searchResultQuery = user;
+                } else {
+                    searchResultQuery = RAGAugmentor.searchWordsForPrompt(llm4tldr.llm, llm4tldr.model, user, queryPrefix); // might return null in case any error occurred
+                    if (searchResultQuery == null || searchResultQuery.length() == 0) searchResultQuery = user; // in case there is an error we simply search with the prompt
+                }
                 final long queryElapsed = System.currentTimeMillis() - queryStart;
-                final Set<String> boostTerms = RAGAugmentor.intersectTokens(userPrompt, searchResultQuery, 8);
                 final long searchStart = System.currentTimeMillis();
-                searchResultMarkdown = RAGAugmentor.searchResultsAsMarkdown(searchResultQuery, 10, "global".equals(ragMode), boostTerms);
+                searchResultMarkdown = RAGAugmentor.searchResultsAsMarkdown(searchResultQuery, 10, "global".equals(ragMode));
                 final long searchElapsed = System.currentTimeMillis() - searchStart;
                 ConcurrentLog.info(
                     "RAGProxy",
                     "searchQuery=\"" + searchResultQuery + "\" queryMs=" + queryElapsed + " searchMs=" + searchElapsed +
-                    " markdownChars=" + searchResultMarkdown.length() + " boostTerms=" + boostTerms.size());
+                    " markdownChars=" + searchResultMarkdown.length());
                 user += userPrefix;
                 user += searchResultMarkdown;
                 userObject.setContentText(user);
@@ -212,9 +213,7 @@ public class RAGProxyServlet extends HttpServlet {
             
             JSONObject initialMetadata = null;
             if (searchResultMarkdown.length() > 0) {
-                initialMetadata = new JSONObject(true);
-                initialMetadata.put("search-filename", "search_result_" + searchResultQuery.replace(' ', '_') + ".md");
-                initialMetadata.put("search-text-base64", new String(Base64.getEncoder().encode(searchResultMarkdown.getBytes(StandardCharsets.UTF_8)), StandardCharsets.UTF_8));
+                initialMetadata = RAGAugmentor.searchResultsDocument(searchResultQuery, 10, "global".equals(ragMode));
             }
 
             // ToolCallProtocol owns request preparation, initial stream handling and follow-up tool rounds.
@@ -224,6 +223,13 @@ public class RAGProxyServlet extends HttpServlet {
         } catch (JSONException e) {
             throw new IOException(e.getMessage());
         }
+    }
+
+    private static int countWords(final String text) {
+        if (text == null) return 0;
+        final String trimmed = text.trim();
+        if (trimmed.isEmpty()) return 0;
+        return trimmed.split("\\s+").length;
     }
 
     public final static class DataURL {

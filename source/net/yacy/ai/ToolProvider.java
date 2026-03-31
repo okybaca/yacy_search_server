@@ -39,6 +39,7 @@ import net.yacy.ai.tools.HttpJsonTool;
 import net.yacy.ai.tools.Mermaid2ASCIITool;
 import net.yacy.ai.tools.NumberParserTool;
 import net.yacy.ai.tools.PromptToMermaidTool;
+import net.yacy.ai.tools.SearchTool;
 import net.yacy.ai.tools.SelfReflectTool;
 import net.yacy.ai.tools.TableOpsTool;
 import net.yacy.ai.tools.UnitConverterTool;
@@ -81,6 +82,7 @@ public final class ToolProvider {
             new Mermaid2ASCIITool()
     );
     private static final List<ToolHandler> TOOLS_RETRIEVAL = Arrays.asList(
+            new SearchTool(),
             new WikipediaLinkCreatorTool(),
             new WebFetchTool()
     );

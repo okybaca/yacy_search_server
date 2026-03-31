@@ -5,7 +5,7 @@
     <title>YaCy '#[clientname]#': LLM Selection</title>
     #%env/templates/metas.template%#
   </head>
-  <body id="IndexControl" data-llm-service="#[llm_service]#" data-llm-hoststub="#[llm_hoststub]#" data-llm-apikey="#[llm_apikey]#">
+  <body id="IndexControl" data-llm-service="#[llm_service]#" data-llm-hoststub="#[llm_hoststub]#" data-llm-apikey="#[llm_apikey]#" data-model-capabilities="#[model_capabilities]#">
     #%env/templates/header.template%#
     #%env/templates/submenuAI.template%#
     <script>
@@ -37,6 +37,10 @@
       const PRODUCTION_MODEL_ACTION_COLUMN_INDEX = PRODUCTION_MODEL_TOTAL_COLUMNS - 1;
       const PRODUCTION_MODEL_TOOLING_COLUMN_INDEX = PRODUCTION_MODEL_FEATURE_COLUMN_START;
       const PRODUCTION_MODEL_VISION_COLUMN_INDEX = PRODUCTION_MODEL_FEATURE_COLUMN_START + 1;
+      const PRODUCTION_MODEL_ENABLED_USAGE_COLUMNS = new Set([
+        6,  // chat
+        11  // tldr
+      ]);
       const PRODUCTION_MODEL_COLUMN_NAMES = [
         "service",
         "model",
@@ -59,25 +63,30 @@
       const TOOLING_EXPECTED_FUNCTION_NAME = "lightswitch";
       let cachedVisionTestImageBase64 = null;
       let cachedVisionTestImagePromise = null;
+      let persistedModelCapabilities = {};
 
       const RECOMMENDED_MODELS = [
-        ["hf.co/tiiuae/Falcon-H1-0.5B-Instruct-GGUF:Q4_K_M",                                     "0.50", "0.5GB", "english-only minimalistic model for small devices", "Technology Innovation Institute, Dubai", "falcon-llm-license"],
-        ["llama3.2:1b-instruct-q4_K_M",                                                          "0.10", "1.5GB", "A good 1B model", "Meta", "llama3.2"],
-        ["llama3.2:3b-instruct-q4_K_M",                                                          "0.66",   "3GB", "A good 3B model", "Meta", "llama3.2"],
-        ["qwen3-vl:2b-instruct-q4_K_M",                                                          "0.73",   "3GB", "A very small vision-model, can understand what is sees in images"],
-        ["qwen3:4b-instruct-2507-q4_K_M",                                                        "7.70",   "3GB", "Exceptional good 4B model", "Alibaba", "apache-2.0"],
-        ["hf.co/mradermacher/Josiefied-Qwen3-4B-Instruct-2507-abliterated-v1-GGUF:Q4_K_M",       "4.41",   "3GB", "Uncensored version of qwen3:4b", "huggingface.co/Goekdeniz-Guelmez", "apache-2.0"],
-        ["hf.co/unsloth/medgemma-4b-it-GGUF:Q4_K_M",                                             "0.60",   "4GB", "Medical Knowledge and Vision", "Google", "health-ai-developer-foundations"],
-        ["olmo-3:7b-instruct-q4_K_M",                                                            "2.22",   "4GB", "open and accessible training data, open-source training code", "allenai.org", "apache-2.0"],
-        ["hf.co/bartowski/AGI-0_Art-0-8B-GGUF:Q4_K_M",                                           "11.9",   "6GB", "Exceptional good 8B model, ranking above ChatGPT-3.5", "AGI-0.com and Alibaba", "apache-2.0"],
-        ["phi4:14b-q4_K_M",                                                                      "5.24",  "10GB", "Very strong, made with synthetic data", "Microsoft", "mit"],
-        ["hf.co/mistralai/Magistral-Small-2509-GGUF:Q4_K_M",                                     "5.18",  "16GB", "European flagship model, strong multilangual, reasoning", "mistral.ai", "apache-2.0"],
-        ["hf.co/bartowski/cognitivecomputations_Dolphin-Mistral-24B-Venice-Edition-GGUF:Q4_K_M", "3.43",  "16GB", "Uncensored multilingual european Mistral-24B for role playing", "mistral.ai and dphn.ai", "apache-2.0"],
-        ["gemma3:27b-it-q4_K_M",                                                                 "4.81",  "20GB", "Strong content safety, multilingual support in over 140 languages", "google.com", "gemma"],
-        ["qwen3-vl:30b-a3b-instruct-q4_K_M",                                                     "17.33", "22GB", "Very fast, exceptional good 30B model, ranking above GPT-4-turbo, GPT-4.1-nano, GPT-o1, GPT-4o-mini", "Alibaba", "apache-2.0"]
+        //["hf.co/tiiuae/Falcon-H1-0.5B-Instruct-GGUF:Q4_K_M",  " 0.50","0.5GB", "english-only minimalistic model for small devices", "Technology Innovation Institute, Dubai", "falcon-llm-license"],
+        //["llama3.2:1b-instruct-q4_K_M",                       " 0.10",  "2GB", "A good 1B model", "Meta", "llama3.2"],
+        ["qwen2.5:1.5b-instruct-q4_K_M",                      " 0.88",  "2GB", "Good small model for 1GB RAM", "Alibaba", "apache-2.0"],
+        ["llama3.2:3b-instruct-q4_K_M",                       " 0.66",  "3GB", "A good 3B model", "Meta", "llama3.2"],
+        //["qwen3-vl:2b-instruct-q4_K_M",                       " 0.73",  "3GB", "A very small vision-model, can understand what is sees in images"],
+        ["hf.co/unsloth/medgemma-4b-it-GGUF:Q4_K_M",          " 0.60",  "4GB", "Medical Knowledge and Vision", "Google", "health-ai-developer-foundations"],
+        ["olmo-3:7b-instruct-q4_K_M",                         " 2.22",  "4GB", "open and accessible training data, open-source training code", "allenai.org", "apache-2.0"],
+		["qwen3:4b-instruct-2507-q4_K_M",                     " 7.70",  "3GB", "a good 4B model", "Alibaba", "apache-2.0"],
+		["hf.co/janhq/Jan-v3-4B-base-instruct-gguf:Q4_K_M",   " 8.19", "6GB", "a brilliant 4B model, post-trained with large teacher from qwen3:4b", "jan.ai", "apache-2.0"],
+		["ministral-3:14b-instruct-2512-q4_K_M",              " 8.55", "10GB", "European flagship model, strong multilangual, vision, agentic", "mistral.ai", "apache-2.0"],
+		["olmo-3.1:32b-instruct-q4_K_M",                      "10.25",  "20GB", "open and accessible training data, open-source training code", "allenai.org", "apache-2.0"],
+		//["phi4:14b-q4_K_M",                                   " 5.24", "10GB", "Strong, made with synthetic data", "Microsoft", "mit"],
+		//["gemma3:27b-it-q4_K_M",                              " 4.81", "20GB", "Strong content safety, multilingual support in over 140 languages", "google.com", "gemma"],
+        //["qwen3-vl:30b-a3b-instruct-q4_K_M",                  "17.33", "22GB", "Very fast, exceptional good 30B model, ranking above GPT-4-turbo, GPT-4.1-nano, GPT-o1, GPT-4o-mini", "Alibaba", "apache-2.0"],
+		["qwen3.5:9b-q4_K_M",                                 "18.37", "14GB", "multimodal, outstanding for its size, long-context 256K Tokens, strong instruction following model", "Alibaba", "apache-2.0"],
+		["hf.co/mradermacher/Ling-mini-2.0-GGUF:Q4_K_M",      "20.00", "20GB", "very fast 16B MoE model with 1.4B activated parameters per expert", "InclusionAI", "mit"],
+		["qwen3.5:35b-a3b-q4_K_M",                            "44.63", "25GB", "Very fast MoE, exceptional good 35B model with vision, ranking above GPT-4-turbo, GPT-4.1-nano, GPT-o1, GPT-4o-mini", "Alibaba", "apache-2.0"]
       ];
-
+	  
       const MODEL_TABLE_HEADERS = ["Model", "Ranking", "Size", "Description", "Provider", "License", "Actions"];
+      const AVAILABLE_MODEL_TABLE_HEADERS = ["Model", "Ranking", "Size", "Description", "Provider", "License", "Tooling", "Vision", "Actions"];
       const RECOMMENDED_MODEL_MAP = new Map(
         RECOMMENDED_MODELS.map(([name, ranking, size, description, provider, license]) => [
           name,
@@ -98,6 +107,83 @@
           throw error;
         }
         return response.json();
+      }
+
+      function modelCapabilityKey(service, hoststub, modelName) {
+        return [
+          (service || "").trim(),
+          (hoststub || "").trim().replace(/\/+$/, ""),
+          (modelName || "").trim()
+        ].join("|");
+      }
+
+      function readPersistedModelCapabilities() {
+        const raw = document.body ? document.body.getAttribute("data-model-capabilities") : "{}";
+        if (!raw) return {};
+        try {
+          const parsed = JSON.parse(raw);
+          return parsed && typeof parsed === "object" ? parsed : {};
+        } catch (err) {
+          console.warn("Failed to parse persisted model capabilities", err);
+          return {};
+        }
+      }
+
+      function normalizeCapabilityStatus(value) {
+        if (value === true) return "supported";
+        if (value === false) return "unsupported";
+        const text = typeof value === "string" ? value.trim().toLowerCase() : "";
+        if (text === "supported" || text === "unsupported" || text === "unknown") return text;
+        return "unknown";
+      }
+
+      function ensureCapabilityEntry(service, hoststub, modelName) {
+        const key = modelCapabilityKey(service, hoststub, modelName);
+        if (!key.trim()) return null;
+        if (!persistedModelCapabilities[key] || typeof persistedModelCapabilities[key] !== "object") {
+            persistedModelCapabilities[key] = {};
+        }
+        persistedModelCapabilities[key].tooling = normalizeCapabilityStatus(persistedModelCapabilities[key].tooling);
+        persistedModelCapabilities[key].vision = normalizeCapabilityStatus(persistedModelCapabilities[key].vision);
+        return persistedModelCapabilities[key];
+      }
+
+      function getPersistedCapabilitiesForModel(service, hoststub, modelName) {
+        const key = modelCapabilityKey(service, hoststub, modelName);
+        const entry = key ? persistedModelCapabilities[key] : null;
+        if (!entry || typeof entry !== "object") {
+          return { tooling: "unknown", vision: "unknown" };
+        }
+        return {
+          tooling: normalizeCapabilityStatus(entry.tooling),
+          vision: normalizeCapabilityStatus(entry.vision)
+        };
+      }
+
+      function setPersistedCapability(service, hoststub, modelName, capabilityName, status) {
+        const entry = ensureCapabilityEntry(service, hoststub, modelName);
+        if (!entry || !capabilityName) return;
+        entry[capabilityName] = normalizeCapabilityStatus(status);
+      }
+
+      function capabilityStatusLabel(status) {
+        switch (normalizeCapabilityStatus(status)) {
+          case "supported":
+            return "yes";
+          case "unsupported":
+            return "no";
+          default:
+            return "?";
+        }
+      }
+
+      function capabilityLabelToBoolean(label) {
+        return (label || "").trim().toLowerCase() === "yes";
+      }
+
+      function isCapabilityUnsupportedError(error) {
+        const status = error && typeof error.status === "number" ? error.status : null;
+        return status === 400 || status === 404 || status === 415 || status === 422;
       }
 
       async function deleteOllamaModel(hoststub, modelName) {
@@ -358,6 +444,8 @@
       function renderAvailableModels(service, payload) {
         const container = document.getElementById("availableModelsContainer");
         if (!container) return;
+        const hoststubField = document.getElementById("hoststub");
+        const hoststub = hoststubField ? hoststubField.value.trim() : "";
 
         const models = service === "OLLAMA" ? (payload.models || []) : (payload.data || []);
         const getId = service === "OLLAMA" ? m => m.model : m => m.id;
@@ -368,6 +456,7 @@
           if (!id) return;
           availableModels.push(id);
           const info = getRecommendedModelInfo(id) || {};
+          const capabilities = getPersistedCapabilitiesForModel(service, hoststub, id);
           rows.push({
             model: id,
             ranking: info.ranking || "",
@@ -375,11 +464,13 @@
             description: info.description || "",
             provider: info.provider || "",
             license: info.license || "",
+            tooling: capabilityStatusLabel(capabilities.tooling),
+            vision: capabilityStatusLabel(capabilities.vision),
             renderActions: () => createAvailableModelActionButtons(service, id)
           });
         });
 
-        renderModelTable(container, "Available Models", rows);
+        renderModelTable(container, "Available Models", rows, AVAILABLE_MODEL_TABLE_HEADERS);
         updateAvailableModelButtons();
       }
 
@@ -401,14 +492,14 @@
           };
         });
 
-        renderModelTable(loadModelContainer, "Recommended Models", rows);
+        renderModelTable(loadModelContainer, "Recommended Models", rows, MODEL_TABLE_HEADERS);
       }
       
       function getRecommendedModelInfo(modelName) {
         return RECOMMENDED_MODEL_MAP.get(modelName) || null;
       }
 
-      function renderModelTable(container, title, rows) {
+      function renderModelTable(container, title, rows, headers) {
         if (!container) return;
         container.innerHTML = `<legend>${title}</legend>`;
         if (title === "Available Models") {
@@ -424,11 +515,12 @@
 
         const table = document.createElement("table");
         table.className = "table table-striped";
+        const activeHeaders = Array.isArray(headers) && headers.length ? headers : MODEL_TABLE_HEADERS;
 
         const thead = document.createElement("thead");
         thead.className = "thead-dark";
         const headerRow = document.createElement("tr");
-        MODEL_TABLE_HEADERS.forEach(h => {
+        activeHeaders.forEach(h => {
           const th = document.createElement("th");
           th.textContent = h;
           headerRow.appendChild(th);
@@ -439,14 +531,25 @@
         const tbody = document.createElement("tbody");
         rows.forEach(row => {
           const tr = document.createElement("tr");
-          const columnValues = [
-            row.model || "",
-            row.ranking || "",
-            row.size || "",
-            row.description || "",
-            row.provider || "",
-            row.license || ""
-          ];
+          const columnValues = title === "Available Models"
+            ? [
+                row.model || "",
+                row.ranking || "",
+                row.size || "",
+                row.description || "",
+                row.provider || "",
+                row.license || "",
+                row.tooling || "?",
+                row.vision || "?"
+              ]
+            : [
+                row.model || "",
+                row.ranking || "",
+                row.size || "",
+                row.description || "",
+                row.provider || "",
+                row.license || ""
+              ];
           columnValues.forEach(value => {
             const td = document.createElement("td");
             //td.className = "narrow";
@@ -563,6 +666,10 @@
         return button;
       }
 
+      function isSelectableUsageColumn(col) {
+        return PRODUCTION_MODEL_ENABLED_USAGE_COLUMNS.has(col);
+      }
+
       function handleModelSelect(modelName) {
         if (!modelName) return;
         upsertProductionModel(modelName);
@@ -582,6 +689,7 @@
         const hoststub = hoststubField ? hoststubField.value.trim() : "";
         const apikey = apikeyField ? apikeyField.value.trim() : "";
         const maxToken = maxTokenField ? maxTokenField.value : "";
+        const persistedCaps = getPersistedCapabilitiesForModel(service, hoststub, modelName);
 
         let targetRow = Array.from(tbody.querySelectorAll("tr")).find(row => {
           const modelCell = row.cells && row.cells[PRODUCTION_MODEL_MODEL_COLUMN_INDEX];
@@ -612,12 +720,11 @@
         });
 
         ensureProductionRowUsageCells(targetRow, !hadRowsBeforeInsert);
+        setToolingFlagForRow(targetRow, persistedCaps.tooling);
+        setVisionFlagForRow(targetRow, persistedCaps.vision);
         ensureProductionRowActionButton(targetRow);
         persistProductionModels();
-        if (isNewRow) {
-          triggerToolingCapabilityVerification(targetRow, { hoststub, modelName, apikey });
-          triggerVisionCapabilityVerification(targetRow, { hoststub, modelName, apikey });
-        }
+        scheduleCapabilityVerificationForRow(targetRow, persistedCaps);
       }
 
       function getProductionTableBody() {
@@ -635,8 +742,27 @@
           }
           ensureProductionRowUsageCells(row, false);
           ensureProductionRowActionButton(row);
+          scheduleCapabilityVerificationForRow(row);
         });
         updateAvailableModelButtons();
+      }
+
+      function scheduleCapabilityVerificationForRow(row, capabilityStatuses) {
+        if (!row || !row.cells || row.cells.length < PRODUCTION_MODEL_TOTAL_COLUMNS) return;
+        const service = row.cells[0] ? row.cells[0].textContent.trim() : "";
+        const modelName = row.cells[PRODUCTION_MODEL_MODEL_COLUMN_INDEX]
+          ? row.cells[PRODUCTION_MODEL_MODEL_COLUMN_INDEX].textContent.trim()
+          : "";
+        const hoststub = row.cells[2] ? row.cells[2].textContent.trim() : "";
+        const apikey = row.cells[3] ? row.cells[3].textContent.trim() : "";
+        if (!service || !modelName || !hoststub) return;
+        const statuses = capabilityStatuses || getPersistedCapabilitiesForModel(service, hoststub, modelName);
+        if (statuses.tooling === "unknown") {
+          triggerToolingCapabilityVerification(row, { service, hoststub, modelName, apikey });
+        }
+        if (statuses.vision === "unknown") {
+          triggerVisionCapabilityVerification(row, { service, hoststub, modelName, apikey });
+        }
       }
 
       function persistInferenceSystem() {
@@ -662,24 +788,31 @@
         for (let col = PRODUCTION_MODEL_USAGE_COLUMN_START; col <= PRODUCTION_MODEL_FEATURE_COLUMN_END; col += 1) {
           const cell = row.cells[col];
           if (!cell) continue;
+          if (col >= PRODUCTION_MODEL_FEATURE_COLUMN_START) {
+            if (!cell.textContent.trim()) {
+              cell.textContent = "?";
+            }
+            continue;
+          }
           let checkbox = cell.querySelector('input[type="checkbox"]');
+          let isNewCheckbox = false;
           if (!checkbox) {
             checkbox = document.createElement("input");
             checkbox.type = "checkbox";
             cell.textContent = "";
             cell.appendChild(checkbox);
-            checkbox.checked = !!defaultChecked && col <= PRODUCTION_MODEL_USAGE_COLUMN_END;
-            if (col >= PRODUCTION_MODEL_FEATURE_COLUMN_START) {
-                // disable the checkbox
-                checkbox.disabled = true
-            }
+            checkbox.checked = !!defaultChecked && isSelectableUsageColumn(col);
+            isNewCheckbox = true;
           }
+          checkbox.disabled = !isSelectableUsageColumn(col);
+          if (isNewCheckbox && !isSelectableUsageColumn(col)) checkbox.checked = false;
           initializeUsageCheckbox(checkbox, col);
         }
         if (defaultChecked) {
             // enforce feature exclusivity for row
             if (!row) return;
             for (let col = PRODUCTION_MODEL_USAGE_COLUMN_START; col <= PRODUCTION_MODEL_USAGE_COLUMN_END; col += 1) {
+              if (!isSelectableUsageColumn(col)) continue;
               const cell = row.cells[col];
               if (!cell) continue;
               const checkbox = cell.querySelector('input[type="checkbox"]');
@@ -802,9 +935,11 @@
           }
           const rowData = {};
           PRODUCTION_MODEL_COLUMN_NAMES.forEach((columnName, index) => {
-            if (index >= PRODUCTION_MODEL_USAGE_COLUMN_START && index <= PRODUCTION_MODEL_FEATURE_COLUMN_END) {
+            if (index >= PRODUCTION_MODEL_FEATURE_COLUMN_START && index <= PRODUCTION_MODEL_FEATURE_COLUMN_END) {
+              rowData[columnName] = capabilityLabelToBoolean(row.cells[index] ? row.cells[index].textContent : "");
+            } else if (index >= PRODUCTION_MODEL_USAGE_COLUMN_START && index <= PRODUCTION_MODEL_USAGE_COLUMN_END) {
               const checkbox = row.cells[index] ? row.cells[index].querySelector('input[type="checkbox"]') : null;
-              rowData[columnName] = checkbox ? checkbox.checked : false;
+              rowData[columnName] = checkbox && isSelectableUsageColumn(index) ? checkbox.checked : false;
             } else {
               rowData[columnName] = row.cells[index] ? row.cells[index].textContent.trim() : "";
             }
@@ -827,7 +962,7 @@
 
         fetch(PRODUCTION_MODEL_SUBMIT_URL, {
           method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ production_models: production_models_table, inference_system })
+          body: JSON.stringify({ production_models: production_models_table, inference_system, model_capabilities: persistedModelCapabilities })
         }).catch(err => {
           console.error("Failed to persist production models", err);
         });
@@ -837,7 +972,7 @@
       /**
        * Tooling capability check
        */
-      function triggerToolingCapabilityVerification(row, { hoststub, modelName, apikey }) {
+      function triggerToolingCapabilityVerification(row, { service, hoststub, modelName, apikey }) {
         if (!row) return;
         const normalizedHoststub = (hoststub || "").trim();
         if (!normalizedHoststub || !modelName) {
@@ -850,13 +985,23 @@
         runToolingCapabilityTest(normalizedHoststub, modelName, apikey)
           .then(success => {
             const rowStillMounted = !!(document && document.body && document.body.contains(row));
-            if (!success || !rowStillMounted) {
+            setPersistedCapability(service, normalizedHoststub, modelName, "tooling", success ? "supported" : "unsupported");
+            if (!rowStillMounted) {
+              persistProductionModels();
               return;
             }
-            setToolingFlagForRow(row, true);
+            setToolingFlagForRow(row, success ? "supported" : "unsupported");
             persistProductionModels();
+            updateAvailableModelCapabilityCells(service, normalizedHoststub, modelName);
           })
           .catch(error => {
+            if (isCapabilityUnsupportedError(error)) {
+              setPersistedCapability(service, normalizedHoststub, modelName, "tooling", "unsupported");
+              setToolingFlagForRow(row, "unsupported");
+              persistProductionModels();
+              updateAvailableModelCapabilityCells(service, normalizedHoststub, modelName);
+              return;
+            }
             console.warn(`Tooling capability check failed for model "${modelName}".`, error);
           })
           .finally(() => {
@@ -881,7 +1026,9 @@
           body: JSON.stringify(payload)
         });
         if (!response.ok) {
-          throw new Error(`HTTP status ${response.status}`);
+          const error = new Error(`HTTP status ${response.status}`);
+          error.status = response.status;
+          throw error;
         }
         const result = await response.json();
         return toolingResponseIncludesExpectedToolCall(result);
@@ -952,18 +1099,16 @@
         return [candidates];
       }
 
-      function setToolingFlagForRow(row, enabled) {
+      function setToolingFlagForRow(row, status) {
         if (!row || row.cells.length <= PRODUCTION_MODEL_TOOLING_COLUMN_INDEX) {
           return;
         }
         const cell = row.cells[PRODUCTION_MODEL_TOOLING_COLUMN_INDEX];
         if (!cell) return;
-        const checkbox = cell.querySelector('input[type="checkbox"]');
-        if (!checkbox) return;
-        checkbox.checked = !!enabled;
+        cell.textContent = capabilityStatusLabel(status);
       }
 
-      function triggerVisionCapabilityVerification(row, { hoststub, modelName, apikey }) {
+      function triggerVisionCapabilityVerification(row, { service, hoststub, modelName, apikey }) {
         if (!row) return;
         const normalizedHoststub = (hoststub || "").trim();
         if (!normalizedHoststub || !modelName) {
@@ -976,11 +1121,14 @@
         runVisionCapabilityTest(normalizedHoststub, modelName, apikey)
           .then(success => {
             const rowStillMounted = !!(document && document.body && document.body.contains(row));
-            if (!success || !rowStillMounted) {
+            setPersistedCapability(service, normalizedHoststub, modelName, "vision", success ? "supported" : "unsupported");
+            if (!rowStillMounted) {
+              persistProductionModels();
               return;
             }
-            setVisionFlagForRow(row, true);
+            setVisionFlagForRow(row, success ? "supported" : "unsupported");
             persistProductionModels();
+            updateAvailableModelCapabilityCells(service, normalizedHoststub, modelName);
           })
           .catch(error => {
             console.warn(`Vision capability check failed for model "${modelName}".`, error);
@@ -1008,7 +1156,9 @@
           body: JSON.stringify(payload)
         });
         if (!response.ok) {
-          throw new Error(`HTTP status ${response.status}`);
+          const error = new Error(`HTTP status ${response.status}`);
+          error.status = response.status;
+          throw error;
         }
         const result = await response.json();
         return visionResponseContainsExpectedAnswer(result);
@@ -1117,15 +1267,25 @@
         });
       }
 
-      function setVisionFlagForRow(row, enabled) {
+      function setVisionFlagForRow(row, status) {
         if (!row || row.cells.length <= PRODUCTION_MODEL_VISION_COLUMN_INDEX) {
           return;
         }
         const cell = row.cells[PRODUCTION_MODEL_VISION_COLUMN_INDEX];
         if (!cell) return;
-        const checkbox = cell.querySelector('input[type="checkbox"]');
-        if (!checkbox) return;
-        checkbox.checked = !!enabled;
+        cell.textContent = capabilityStatusLabel(status);
+      }
+
+      function updateAvailableModelCapabilityCells(service, hoststub, modelName) {
+        const container = document.getElementById("availableModelsContainer");
+        if (!container) return;
+        const capabilities = getPersistedCapabilitiesForModel(service, hoststub, modelName);
+        container.querySelectorAll("tbody tr").forEach(row => {
+          const modelCell = row.cells && row.cells[0];
+          if (!modelCell || modelCell.textContent.trim() !== modelName) return;
+          if (row.cells[6]) row.cells[6].textContent = capabilityStatusLabel(capabilities.tooling);
+          if (row.cells[7]) row.cells[7].textContent = capabilityStatusLabel(capabilities.vision);
+        });
       }
 
       function createDownloadButton(hoststub, modelName) {
@@ -1164,6 +1324,7 @@
 
       document.addEventListener("DOMContentLoaded", () => {
         try {
+          persistedModelCapabilities = readPersistedModelCapabilities();
           normalizeProductionModelRows();
           applyPresetInference();
           // auto-show available models if a preset inference exists
@@ -1285,16 +1446,16 @@
                 <td>#[api_key]#</td>
                 <td>#[max_tokens]#</td>
                 
-                <td><input type="checkbox" #(search)#::checked=true#(/search)#></td>
+                <td><input type="checkbox" #(search)#::checked=true#(/search)# disabled="disabled"></td>
                 <td><input type="checkbox" #(chat)#::checked=true#(/chat)#></td>
-                <td><input type="checkbox" #(translation)#::checked=true#(/translation)#></td>
-                <td><input type="checkbox" #(classification)#::checked=true#(/classification)#></td>
-                <td><input type="checkbox" #(query)#::checked=true#(/query)#></td>
-                <td><input type="checkbox" #(qapairs)#::checked=true#(/qapairs)#></td>
+                <td><input type="checkbox" #(translation)#::checked=true#(/translation)# disabled="disabled"></td>
+                <td><input type="checkbox" #(classification)#::checked=true#(/classification)# disabled="disabled"></td>
+                <td><input type="checkbox" #(query)#::checked=true#(/query)# disabled="disabled"></td>
+                <td><input type="checkbox" #(qapairs)#::checked=true#(/qapairs)# disabled="disabled"></td>
                 <td><input type="checkbox" #(tldr)#::checked=true#(/tldr)#></td>
                 
-                <td><input type="checkbox" #(tooling)#::checked=true#(/tooling)# disabled=true></td>
-                <td><input type="checkbox" #(vision)#::checked=true#(/vision)# disabled=true></td>
+                <td>#[tooling]#</td>
+                <td>#[vision]#</td>
                 <td></td>
             </tr>
         #{/productionmodels}#

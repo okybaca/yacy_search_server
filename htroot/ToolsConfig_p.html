@@ -1,7 +1,7 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
   <head>
-    <title>YaCy '#[clientname]#': Skills Config</title>
+    <title>YaCy '#[clientname]#': Tools Config</title>
     #%env/templates/metas.template%#
     <style type="text/css">
       .tool-card {
@@ -69,13 +69,12 @@
       }
     </style>
   </head>
-  <body id="SkillsConfig">
+  <body id="ToolsConfig">
     #%env/templates/header.template%#
     #%env/templates/submenuAI.template%#
 
-    <h2>Skills</h2>
-    <p>Add superpowers to the YaCy Chat. Skills may be disabled by setting maxCallsPerTurn to 0.</p>
-    <!-- Technical naming note: internally these are called tools; in the user experience they are shown as skills. -->
+    <h2>Tools</h2>
+    <p>Add superpowers to the YaCy Chat. Tools may be disabled by setting maxCallsPerTurn to 0.</p>
 
     #(status)#
     ::<div class="alert alert-success">Tool settings were saved.</div>
@@ -84,10 +83,10 @@
     ::<div class="alert alert-warning">#[status_invalidMaxCalls]# invalid maxCallsPerTurn value(s) were reset to the previous values.</div>
     #(/status_hasInvalidMaxCalls)#
 
-    <form action="SkillsConfig_p.html" method="post" accept-charset="UTF-8">
+    <form action="ToolsConfig_p.html" method="post" accept-charset="UTF-8">
       <input type="hidden" name="save" value="1" />
 
-      <h3>Basic Skills</h3>
+      <h3>Basic Tools</h3>
       <div class="skills-grid">
       #{basic_tools}#
       <div class="tool-card">
@@ -104,7 +103,7 @@
       #{/basic_tools}#
       </div>
 
-      <h3>Visualization Skills</h3>
+      <h3>Visualization Tools</h3>
       <div class="skills-grid">
       #{visualization_tools}#
       <div class="tool-card">
@@ -121,7 +120,7 @@
       #{/visualization_tools}#
       </div>
 
-      <h3>Data Retrieval Skills</h3>
+      <h3>Data Retrieval Tools</h3>
       <div class="skills-grid">
       #{retrieval_tools}#
       <div class="tool-card">
@@ -137,7 +136,7 @@
       </div>
       #{/retrieval_tools}#
       </div>
-      <button type="submit" class="btn btn-primary">Save Skills Configuration</button>
+      <button type="submit" class="btn btn-primary">Save Tools Configuration</button>
     </form>
 
     <script type="text/javascript">
