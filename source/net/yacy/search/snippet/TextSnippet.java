@@ -88,6 +88,23 @@ public class TextSnippet implements Comparable<TextSnippet>, Comparator<TextSnip
      */
     private static final Pattern p4 =
             Pattern.compile("[^\\p{L}\\p{N}]");
+    private static final Pattern MARKDOWN_LINK_PATTERN =
+            Pattern.compile("\\[(.+?)\\]\\((.+?)\\)");
+    private static final Pattern MARKDOWN_IMAGE_PATTERN =
+            Pattern.compile("!\\[(.*?)\\]\\((.+?)\\)");
+    private static final Pattern MARKDOWN_EMPHASIS_PATTERN =
+            Pattern.compile("(\\*\\*|__|~~|`|\\*|_)");
+    /**
+     * Temporary compatibility patch for legacy snippet entries in existing indexes :
+     * older snippet generation could persist a literal "\n" before markdown prefixes
+     * (notably list items), which later rendered as visible "n-" fragments.
+     * Convert only these escaped markdown line starts back to real newlines so the
+     * normal markdown stripping below can remove them.
+     */
+    private static final Pattern LEGACY_ESCAPED_NEWLINE_MARKDOWN_PREFIX_PATTERN =
+            Pattern.compile("\\\\n(?=\\s{0,3}(#{1,6}\\s+|>\\s+|[-*+]\\s+|\\d+\\.\\s+))");
+    private static final Pattern MARKDOWN_PREFIX_PATTERN =
+            Pattern.compile("(?m)^\\s{0,3}(#{1,6}\\s+|>\\s+|[-*+]\\s+|\\d+\\.\\s+)");
 
     public static class Cache {
         private final ARC<String, String> cache;
@@ -147,7 +164,10 @@ public class TextSnippet implements Comparable<TextSnippet>, Comparator<TextSnip
     /** URL hash of this snippet */
     private byte[] urlhash;
     
-    /** The raw (unmodified) line from source ( use getDescriptionLine() to get the html encoded version for display) */
+    /** The raw line from source, kept for RAG and non-display consumers */
+    private String rawline;
+
+    /** Display-oriented snippet line with markdown formatting stripped */
     private String line;
     
     /** Set to true when query words are already marked in the input text */
@@ -163,7 +183,18 @@ public class TextSnippet implements Comparable<TextSnippet>, Comparator<TextSnip
             final ResultClass errorCode,
             final String errortext) {
     	long beginTime = System.currentTimeMillis();
-        init(url, line, isMarked, errorCode, errortext, beginTime);
+        init(url, line, line, isMarked, errorCode, errortext, beginTime);
+    }
+
+    public TextSnippet(
+            final DigestURL url,
+            final String rawLine,
+            final String displayLine,
+            final boolean isMarked,
+            final ResultClass errorCode,
+            final String errortext) {
+        long beginTime = System.currentTimeMillis();
+        init(url, rawLine, displayLine, isMarked, errorCode, errortext, beginTime);
     }
 
     public TextSnippet(
@@ -176,11 +207,12 @@ public class TextSnippet implements Comparable<TextSnippet>, Comparator<TextSnip
             final int snippetMaxLength,
             final boolean reindexing) {
     	long beginTime = System.currentTimeMillis();
+        final boolean fullDocumentSnippet = snippetMaxLength < 0;
         // heise = "0OQUNU3JSs05"
         
         final DigestURL url = row.url();
         if (queryTerms.isEmpty()) {
-            init(url, null, false, ResultClass.ERROR_NO_TERM_GIVEN, "no query terms given", beginTime);
+            init(url, null, null, false, ResultClass.ERROR_NO_TERM_GIVEN, "no query terms given", beginTime);
             return;
         }
 
@@ -193,7 +225,7 @@ public class TextSnippet implements Comparable<TextSnippet>, Comparator<TextSnip
         	final String snippetLine = snippetsCache.get(wordhashes, urlHash);
         	if (snippetLine != null) {
         		// found the snippet
-        		init(url, snippetLine, false, source, null, beginTime);
+        		init(url, snippetLine, snippetLine, false, source, null, beginTime);
         		return;
         	}
         } else {
@@ -250,18 +282,23 @@ public class TextSnippet implements Comparable<TextSnippet>, Comparator<TextSnip
             }
             if (sentences == null) {
                 // not found the snippet
-                init(url, null, false, ResultClass.SOURCE_METADATA, null, beginTime);
+                init(url, null, null, false, ResultClass.SOURCE_METADATA, null, beginTime);
                 return;
             }
 
             if (sentences.iterator().hasNext()) {
-                try {
-                    final SnippetExtractor tsr = new SnippetExtractor(sentences, remainingTerms, snippetMaxLength);
-                    textline = tsr.getSnippet();
-                    remainingTerms = tsr.getRemainingTerms();
-                } catch (final UnsupportedOperationException e) {
-                    init(url, null, false, ResultClass.ERROR_NO_MATCH, "snippet extractor failed:" + e.getMessage(), beginTime);
-                    return;
+                if (fullDocumentSnippet) {
+                    textline = collectAllSentences(sentences);
+                    remainingTerms.clear();
+                } else {
+                    try {
+                        final SnippetExtractor tsr = new SnippetExtractor(sentences, remainingTerms, snippetMaxLength);
+                        textline = tsr.getSnippet();
+                        remainingTerms = tsr.getRemainingTerms();
+                    } catch (final UnsupportedOperationException e) {
+                        init(url, null, null, false, ResultClass.ERROR_NO_MATCH, "snippet extractor failed:" + e.getMessage(), beginTime);
+                        return;
+                    }
                 }
             }
        }
@@ -302,17 +339,22 @@ public class TextSnippet implements Comparable<TextSnippet>, Comparator<TextSnip
                     }
                     if (textline == null) {
                     	sentences.reset();
-                        final StringBuilder s = new StringBuilder(snippetMaxLength);
-                        for (final StringBuilder t: sentences) {
-                        	s.append(t).append(' ');
-                        	if (s.length() >= snippetMaxLength / 4 * 3) break;
+                        if (fullDocumentSnippet) {
+                            textline = collectAllSentences(sentences);
+                        } else {
+                            final StringBuilder s = new StringBuilder(snippetMaxLength);
+                            for (final StringBuilder t: sentences) {
+                        	    s.append(t).append(' ');
+                        	    if (s.length() >= snippetMaxLength / 4 * 3) break;
+                            }
+                            if (s.length() > snippetMaxLength) { s.setLength(snippetMaxLength); s.trimToSize(); }
+                            textline = s.toString();
                         }
-                        if (s.length() > snippetMaxLength) { s.setLength(snippetMaxLength); s.trimToSize(); }
-                        textline = s.toString();
                     }
                 }
             }
-            init(url, textline.length() > 0 ? textline : this.line, false, ResultClass.SOURCE_METADATA, null, beginTime);
+            final String fallbackLine = textline.length() > 0 ? textline : this.line;
+            init(url, fallbackLine, fallbackLine, false, ResultClass.SOURCE_METADATA, null, beginTime);
             return;
         }
         sentences = null; // we don't need this here any more
@@ -328,12 +370,12 @@ public class TextSnippet implements Comparable<TextSnippet>, Comparator<TextSnip
         if (response == null) {
             // in case that we did not get any result we can still return a success when we are not allowed to go online
             if (cacheStrategy == null || cacheStrategy.mustBeOffline()) {
-                init(url, null, false, ResultClass.ERROR_SOURCE_LOADING, "omitted network load (not allowed), no cache entry", beginTime);
+                init(url, null, null, false, ResultClass.ERROR_SOURCE_LOADING, "omitted network load (not allowed), no cache entry", beginTime);
                 return;
             }
 
             // if it is still not available, report an error
-            init(url, null, false, ResultClass.ERROR_RESOURCE_LOADING, "error loading resource from net, no cache entry", beginTime);
+            init(url, null, null, false, ResultClass.ERROR_RESOURCE_LOADING, "error loading resource from net, no cache entry", beginTime);
             return;
         }
 
@@ -348,11 +390,11 @@ public class TextSnippet implements Comparable<TextSnippet>, Comparator<TextSnip
         try {
             document = Document.mergeDocuments(response.url(), response.getMimeType(), response.parse());
         } catch (final Parser.Failure e) {
-            init(url, null, false, ResultClass.ERROR_PARSER_FAILED, e.getMessage(), beginTime); // cannot be parsed
+            init(url, null, null, false, ResultClass.ERROR_PARSER_FAILED, e.getMessage(), beginTime); // cannot be parsed
             return;
         }
         if (document == null) {
-            init(url, null, false, ResultClass.ERROR_PARSER_FAILED, "parser error/failed", beginTime); // cannot be parsed
+            init(url, null, null, false, ResultClass.ERROR_PARSER_FAILED, "parser error/failed", beginTime); // cannot be parsed
             return;
         }
 
@@ -361,31 +403,53 @@ public class TextSnippet implements Comparable<TextSnippet>, Comparator<TextSnip
         document.close();
 
         if (!sentences.hasNext()) {
-            init(url, null, false, ResultClass.ERROR_PARSER_NO_LINES, "parser returned no sentences", beginTime);
+            init(url, null, null, false, ResultClass.ERROR_PARSER_NO_LINES, "parser returned no sentences", beginTime);
             return;
         }
 
-        try {
-            final SnippetExtractor tsr = new SnippetExtractor(sentences, remainingTerms, snippetMaxLength);
-            textline = tsr.getSnippet();
-            remainingTerms =  tsr.getRemainingTerms();
-        } catch (final UnsupportedOperationException e) {
-            init(url, null, false, ResultClass.ERROR_NO_MATCH, "snippet extractor failed:" + e.getMessage(), beginTime);
-            return;
+        if (fullDocumentSnippet) {
+            textline = collectAllSentences(sentences);
+            remainingTerms.clear();
+        } else {
+            try {
+                final SnippetExtractor tsr = new SnippetExtractor(sentences, remainingTerms, snippetMaxLength);
+                textline = tsr.getSnippet();
+                remainingTerms =  tsr.getRemainingTerms();
+            } catch (final UnsupportedOperationException e) {
+                init(url, null, null, false, ResultClass.ERROR_NO_MATCH, "snippet extractor failed:" + e.getMessage(), beginTime);
+                return;
+            }
         }
         sentences = null;
 
         if (textline == null || !remainingTerms.isEmpty()) {
-            init(url, null, false, ResultClass.ERROR_NO_MATCH, "no matching snippet found", beginTime);
+            init(url, null, null, false, ResultClass.ERROR_NO_MATCH, "no matching snippet found", beginTime);
             return;
         }
-        if (textline.length() > snippetMaxLength) textline = textline.substring(0, snippetMaxLength);
+        if (!fullDocumentSnippet && textline.length() > snippetMaxLength) textline = textline.substring(0, snippetMaxLength);
 
         // finally store this snippet in our own cache
         if(wordhashes != null) {
         	snippetsCache.put(wordhashes, urlHash, textline);
         }
-        init(url, textline, false, source, null, beginTime);
+        init(url, textline, textline, false, source, null, beginTime);
+    }
+
+    private static String collectAllSentences(final Iterable<StringBuilder> sentences) {
+        if (sentences == null) {
+            return null;
+        }
+        final StringBuilder all = new StringBuilder();
+        for (final StringBuilder sentence : sentences) {
+            if (sentence == null || sentence.length() == 0) {
+                continue;
+            }
+            if (all.length() > 0) {
+                all.append(' ');
+            }
+            all.append(sentence);
+        }
+        return all.toString();
     }
 
     /**
@@ -400,13 +464,16 @@ public class TextSnippet implements Comparable<TextSnippet>, Comparator<TextSnip
      */
     private void init(
             final DigestURL url,
-            final String line,
+            final String rawLine,
+            final String displayLine,
             final boolean isMarked,
             final ResultClass errorCode,
             final String errortext,
             final long beginTime) {
         this.urlhash = url.hash();
-        this.line = sanitizeSnippetLine(line);
+        this.rawline = sanitizeSnippetLine(rawLine);
+        final String sanitizedDisplay = sanitizeSnippetLine(displayLine);
+        this.line = stripMarkdownForDisplay(sanitizedDisplay == null ? this.rawline : sanitizedDisplay);
         this.isMarked = isMarked;
         this.resultStatus = errorCode;
         this.error = errortext;
@@ -461,6 +528,29 @@ public class TextSnippet implements Comparable<TextSnippet>, Comparator<TextSnip
         return sanitized.toString().replaceAll("\\s{2,}", " ").trim();
     }
 
+    /**
+     * Strip markdown syntax from snippet text intended for browser display while
+     * preserving readable content. The raw snippet remains available through
+     * getLineRaw() for RAG consumers.
+     * @param line raw snippet text
+     * @return display-friendly plain text
+     */
+    static String stripMarkdownForDisplay(final String line) {
+        if (line == null || line.isEmpty()) {
+            return line;
+        }
+        String sanitized = line;
+        sanitized = sanitized.replace("```", " ");
+        sanitized = LEGACY_ESCAPED_NEWLINE_MARKDOWN_PREFIX_PATTERN.matcher(sanitized).replaceAll("\n");
+        sanitized = MARKDOWN_IMAGE_PATTERN.matcher(sanitized).replaceAll("$1");
+        sanitized = MARKDOWN_LINK_PATTERN.matcher(sanitized).replaceAll("$1");
+        sanitized = MARKDOWN_PREFIX_PATTERN.matcher(sanitized).replaceAll("");
+        sanitized = MARKDOWN_EMPHASIS_PATTERN.matcher(sanitized).replaceAll("");
+        sanitized = sanitized.replaceAll("\\\\([\\\\`*_{}\\[\\]()#+\\-.!>~|])", "$1");
+        sanitized = sanitized.replaceAll("\\s{2,}", " ").trim();
+        return sanitized;
+    }
+
     private static boolean isLikelyJavaScriptBlock(final String blockContent) {
         if (blockContent == null) {
             return false;
@@ -488,7 +578,7 @@ public class TextSnippet implements Comparable<TextSnippet>, Comparator<TextSnip
      * @return true when a snippet text is available for the document corresponding to this.urlhash
      */
     public boolean exists() {
-        return this.line != null;
+        return this.rawline != null;
     }
 
     /**
@@ -502,7 +592,7 @@ public class TextSnippet implements Comparable<TextSnippet>, Comparator<TextSnip
      * @return the raw snippet text line, with query words eventually already marked
      */
     public String getLineRaw() {
-        return (this.line == null) ? "" : this.line;
+        return (this.rawline == null) ? "" : this.rawline;
     }
 
     public String getError() {
@@ -567,7 +657,7 @@ public class TextSnippet implements Comparable<TextSnippet>, Comparator<TextSnip
         if (descriptionline != null) return descriptionline;
         if (this.isMarked) {
             // html encode source, keep <b>..</b>
-            descriptionline = CharacterCoding.unicode2html(this.getLineRaw(), false).replaceAll("&lt;b&gt;(.+?)&lt;/b&gt;", "<b>$1</b>");
+            descriptionline = CharacterCoding.unicode2html(this.line == null ? "" : this.line, false).replaceAll("&lt;b&gt;(.+?)&lt;/b&gt;", "<b>$1</b>");
         } else {
             descriptionline = this.getLineMarked(queryGoal);
         }

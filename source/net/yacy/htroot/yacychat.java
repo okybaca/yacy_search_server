@@ -6,6 +6,7 @@ import org.json.JSONTokener;
 
 import net.yacy.cora.protocol.RequestHeader;
 import net.yacy.search.Switchboard;
+import net.yacy.search.SwitchboardConstants;
 import net.yacy.server.serverObjects;
 import net.yacy.server.serverSwitch;
 
@@ -30,6 +31,24 @@ public class yacychat {
     final String systemPrompt = sb.getConfig("ai.system-prompt", net.yacy.http.servlets.RAGProxyServlet.LLM_SYSTEM_PROMPT_DEFAULT);
     prop.put("system_prompt", systemPrompt);
     prop.put("topmenu", sb.getConfigBool("ai.shield.show-chat-link", false) ? (sb.getConfigBool("publicTopmenu", true) ? 1 : 0) : 2);
+
+    String promoteChatPageGreeting = env.getConfig("promoteChatPageGreeting", "");
+    if (env.getConfigBool(SwitchboardConstants.GREETING_NETWORK_NAME, false)) {
+        promoteChatPageGreeting = env.getConfig("network.unit.description", "");
+    }
+    prop.put("promoteChatPageGreeting", promoteChatPageGreeting);
+    prop.put("topmenu_promoteChatPageGreeting", promoteChatPageGreeting);
+    prop.put(SwitchboardConstants.GREETING_HOMEPAGE, sb.getConfig(SwitchboardConstants.GREETING_HOMEPAGE, ""));
+    prop.put("topmenu_" + SwitchboardConstants.GREETING_HOMEPAGE, sb.getConfig(SwitchboardConstants.GREETING_HOMEPAGE, ""));
+    prop.put(SwitchboardConstants.GREETING_LARGE_IMAGE, sb.getConfig(SwitchboardConstants.GREETING_LARGE_IMAGE, ""));
+    prop.put("topmenu_" + SwitchboardConstants.GREETING_LARGE_IMAGE, sb.getConfig(SwitchboardConstants.GREETING_LARGE_IMAGE, ""));
+    prop.put(SwitchboardConstants.GREETING_IMAGE_ALT, sb.getConfig(SwitchboardConstants.GREETING_IMAGE_ALT, ""));
+    prop.put("topmenu_" + SwitchboardConstants.GREETING_IMAGE_ALT, sb.getConfig(SwitchboardConstants.GREETING_IMAGE_ALT, ""));
+
+    // determine if P2P mode is active (global search available)
+    final boolean indexReceiveGranted = sb.getConfigBool(net.yacy.search.SwitchboardConstants.INDEX_RECEIVE_ALLOW_SEARCH, true) || (sb.isRobinsonMode() && sb.getConfig(net.yacy.search.SwitchboardConstants.CLUSTER_MODE, "").equals(net.yacy.search.SwitchboardConstants.CLUSTER_MODE_PUBLIC_CLUSTER));
+    final boolean p2pmode = indexReceiveGranted;
+    prop.put("p2p_mode", p2pmode ? 1 : 0);
 
     // return rewrite properties
     return prop;

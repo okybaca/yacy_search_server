@@ -1,5 +1,5 @@
 /**
- *  SkillsConfig_p
+ *  ToolsConfig_p
  *  Copyright 2026 by Michael Peter Christen
  *  First released 08.02.2026 at https://yacy.net
  *
@@ -29,7 +29,7 @@ import net.yacy.search.Switchboard;
 import net.yacy.server.serverObjects;
 import net.yacy.server.serverSwitch;
 
-public class SkillsConfig_p {
+public class ToolsConfig_p {
 
     private static final String CONFIG_PREFIX = "ai.tools.";
     private static final String DESCRIPTION_SUFFIX = ".description";
@@ -38,6 +38,7 @@ public class SkillsConfig_p {
     public static serverObjects respond(@SuppressWarnings("unused") final RequestHeader header, final serverObjects post, final serverSwitch env) {
         final Switchboard sb = (Switchboard) env;
         final serverObjects prop = new serverObjects();
+        sb.setConfig("ui.ToolsConfig_p.visited", "true");
         sb.setConfig("ui.SkillsConfig_p.visited", "true");
 
         int invalidMaxCalls = 0;
@@ -72,10 +73,6 @@ public class SkillsConfig_p {
         return prop;
     }
 
-    /*
-     * Naming note: internally these are called "tools", but in the UI we call
-     * them "skills". Both terms refer to the same feature set.
-     */
     private static void putToolGroup(final serverObjects prop, final String keyPrefix, final List<ToolConfig> tools) {
         int row = 0;
         for (final ToolConfig tool : tools) {

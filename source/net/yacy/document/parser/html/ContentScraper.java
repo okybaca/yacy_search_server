@@ -1208,7 +1208,7 @@ public class ContentScraper extends AbstractScraper implements Scraper {
             String text = this.content.trim().toString();
             Matcher m;
             while ((m = this.tripleN.matcher(text)).find()) text = m.replaceAll("\n\n");
-            while ((m = this.doubleNd.matcher(text)).find()) text = m.replaceAll("\\n- ");
+            while ((m = this.doubleNd.matcher(text)).find()) text = m.replaceAll("\n- ");
             return text;
         } catch (final OutOfMemoryError e) {
             ConcurrentLog.logException(e);

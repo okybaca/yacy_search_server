@@ -84,15 +84,20 @@ public final class ToolCallProtocol {
      * @param forceStream when true, sets {@code stream=true} in the cloned body
      * @return prepared request body clone
      */
-    public static JSONObject prepareToolRequestBody(JSONObject body, boolean forceStream) {
+    public static JSONObject prepareToolRequestBody(JSONObject body, boolean forceStream, boolean toolingEnabled) {
         try {
             final JSONObject prepared = body == null ? new JSONObject(true) : new JSONObject(body.toString());
             if (forceStream) prepared.put("stream", true);
-            net.yacy.ai.ToolProvider.ensureTools(prepared);
+            final String model = prepared.optString("model", "");
+            if (model.toLowerCase().contains("qwen3.5")) {
+                prepared.put("reasoning_effort", "none");
+                prepared.put("enable_thinking", false);
+            }
+            if (toolingEnabled) net.yacy.ai.ToolProvider.ensureTools(prepared);
             return prepared;
         } catch (JSONException e) {
             final JSONObject fallback = new JSONObject(true);
-            net.yacy.ai.ToolProvider.ensureTools(fallback);
+            if (toolingEnabled) net.yacy.ai.ToolProvider.ensureTools(fallback);
             return fallback;
         }
     }
@@ -117,9 +122,10 @@ public final class ToolCallProtocol {
      * @throws IOException on network/stream/protocol errors
      */
     public static int proxyToolLifecycle(ServletOutputStream out, LLM.LLMModel llm4Chat, JSONObject originalBody, JSONArray messages, JSONObject initialMetadata) throws IOException {
-        final JSONObject preparedBody = prepareToolRequestBody(originalBody, false);
+        final JSONObject preparedBody = prepareToolRequestBody(originalBody, false, llm4Chat != null && llm4Chat.tooling);
         final HttpURLConnection conn = openChatCompletionConnection(llm4Chat, preparedBody);
         final int status = conn.getResponseCode();
+        //final String message = conn.getResponseMessage();
         if (status == 200) {
             handleInitialStreamAndContinue(out, conn, llm4Chat, preparedBody, messages, initialMetadata);
         } else {
@@ -277,7 +283,7 @@ public final class ToolCallProtocol {
                 }
 
                 // Build follow-up completion request from original body template.
-                final JSONObject followup = prepareToolRequestBody(originalBody, true);
+                final JSONObject followup = prepareToolRequestBody(originalBody, true, llm4Chat != null && llm4Chat.tooling);
                 followup.put("messages", newMessages);
                 final HttpURLConnection followConn = openChatCompletionConnection(llm4Chat, followup);
                 if (followConn.getResponseCode() != 200) {
@@ -367,7 +373,8 @@ public final class ToolCallProtocol {
         }
         conn.setDoOutput(true);
         try (OutputStream os = conn.getOutputStream()) {
-            os.write(requestBody.toString().getBytes(StandardCharsets.UTF_8));
+            String rbody = requestBody.toString();
+            os.write(rbody.getBytes(StandardCharsets.UTF_8));
             os.flush();
         }
         return conn;

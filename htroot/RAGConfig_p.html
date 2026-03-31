@@ -53,6 +53,12 @@
         <textarea name="ai.llm-query-generator-prefix" class="rag-textarea form-control" rows="5">#[ai.llm-query-generator-prefix]#</textarea>
       </div>
 
+      <div class="rag-card">
+        <h3>Search Document Max Length</h3>
+        <p>Maximum character length of the virtual search document used as RAG attachment and as the `search` tool result. Content beyond this limit is cut off. Default: 30000.</p>
+        <input type="number" min="1" step="1" name="ai.rag.search-document-maxlength" value="#[ai.rag.search-document-maxlength]#" class="form-control" />
+      </div>
+
       <button type="submit" class="btn btn-primary">Save RAG Settings</button>
     </form>
 

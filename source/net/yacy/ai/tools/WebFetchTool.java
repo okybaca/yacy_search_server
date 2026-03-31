@@ -83,26 +83,26 @@ public class WebFetchTool implements ToolHandler {
             JSONObject obj = (arguments == null || arguments.isEmpty()) ? new JSONObject(true) : new JSONObject(arguments);
             urlRaw = obj.optString("url", "").trim();
         } catch (JSONException e) {
-            return ToolHandler.errorJson("Invalid arguments JSON. don't try again");
+            return recoverableErrorJson("Invalid arguments JSON. don't try again");
         }
-        if (urlRaw == null || urlRaw.isEmpty()) return ToolHandler.errorJson("Missing url. don't try again");
+        if (urlRaw == null || urlRaw.isEmpty()) return recoverableErrorJson("Missing url. don't try again");
 
         final DigestURL url;
         try {
             url = new DigestURL(urlRaw);
         } catch (Exception e) {
-            return ToolHandler.errorJson("Invalid URL. don't try again");
+            return recoverableErrorJson("Invalid URL. don't try again");
         }
         final String protocol = url.getProtocol();
         if (!"http".equalsIgnoreCase(protocol) && !"https".equalsIgnoreCase(protocol)) {
-            return ToolHandler.errorJson("Only http/https URLs are allowed. don't try again");
+            return recoverableErrorJson("Only http/https URLs are allowed. don't try again");
         }
 
         try (HTTPClient client = new HTTPClient(ClientIdentification.yacyInternetCrawlerAgent, 30000)) {
             byte[] content = client.GETbytes(url, null, null, TOOL_WEBFETCH_MAX_BYTES, false);
             int status = client.getStatusCode();
-            if (status < 200 || status >= 300) return ToolHandler.errorJson("HTTP status " + status + ". don't try again");
-            if (content == null || content.length == 0) return ToolHandler.errorJson("Empty response body. don't try again");
+            if (status < 200 || status >= 300) return recoverableErrorJson("HTTP status " + status + ". don't try again");
+            if (content == null || content.length == 0) return recoverableErrorJson("Empty response body. don't try again");
 
             String contentType = "application/octet-stream";
             Header ct = client.getHttpResponse() == null ? null : client.getHttpResponse().getFirstHeader(HeaderFramework.CONTENT_TYPE);
@@ -114,7 +114,7 @@ public class WebFetchTool implements ToolHandler {
             final ContentDomain mimeDomain = Classification.getContentDomainFromMime(contentType);
             if (mimeDomain == ContentDomain.IMAGE || mimeDomain == ContentDomain.AUDIO || mimeDomain == ContentDomain.VIDEO
                     || Classification.isMediaExtension(ext)) {
-                return ToolHandler.errorJson("Media content is not supported. don't try again");
+                return recoverableErrorJson("Media content is not supported. don't try again");
             }
 
             String text;
@@ -130,7 +130,7 @@ public class WebFetchTool implements ToolHandler {
                 } else if (contentType.startsWith("text/")) {
                     text = truncate(new String(content, StandardCharsets.UTF_8), TOOL_WEBFETCH_MAX_CHARS);
                 } else {
-                    return ToolHandler.errorJson("Unsupported content type " + contentType + ". don't try again");
+                    return recoverableErrorJson("Unsupported content type " + contentType + ". don't try again");
                 }
             }
 
@@ -140,11 +140,22 @@ public class WebFetchTool implements ToolHandler {
             result.put("content", text == null ? "" : text);
             return result.toString();
         } catch (IOException e) {
-            return ToolHandler.errorJson("Fetch error: " + e.getMessage() + ". don't try again");
+            return recoverableErrorJson("Fetch error: " + e.getMessage() + ". don't try again");
         } catch (Parser.Failure e) {
-            return ToolHandler.errorJson("Parse error: " + e.getMessage() + ". don't try again");
+            return recoverableErrorJson("Parse error: " + e.getMessage() + ". don't try again");
         } catch (JSONException e) {
-            return ToolHandler.errorJson("Failed to build tool response. don't try again");
+            return recoverableErrorJson("Failed to build tool response. don't try again");
+        }
+    }
+
+    private static String recoverableErrorJson(final String message) {
+        try {
+            final JSONObject err = new JSONObject(true);
+            err.put("error", message == null ? "error" : message);
+            err.put("next_tool_hint", "This web resource may not exist or may be temporarily unavailable. Do not stop because of this webfetch failure; continue with other reasoning steps or other sources.");
+            return err.toString();
+        } catch (final JSONException e) {
+            return ToolHandler.errorJson(message);
         }
     }
 
