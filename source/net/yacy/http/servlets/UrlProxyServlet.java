@@ -1,3 +1,23 @@
+/**
+ *  UrlProxyServlet
+ *  Copyright 2026 by Michael Peter Christen
+ *  First released 12.07.2026 at https://yacy.net
+ *
+ *  This library is free software; you can redistribute it and/or
+ *  modify it under the terms of the GNU Lesser General Public
+ *  License as published by the Free Software Foundation; either
+ *  version 2.1 of the License, or (at your option) any later version.
+ *
+ *  This library is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ *  Lesser General Public License for more details.
+ *
+ *  You should have received a copy of the GNU Lesser General Public License
+ *  along with this program in the file lgpl21.txt
+ *  If not, see <http://www.gnu.org/licenses/>.
+ */
+
 package net.yacy.http.servlets;
 
 import java.io.ByteArrayInputStream;
@@ -25,7 +45,7 @@ import net.yacy.cora.protocol.HeaderFramework;
 import net.yacy.cora.protocol.RequestHeader;
 import net.yacy.cora.protocol.ResponseHeader;
 import net.yacy.cora.util.ConcurrentLog;
-import net.yacy.http.ProxyHandler;
+import net.yacy.http.ServletRequestHeaderAdapter;
 import net.yacy.kelondro.util.FileUtils;
 import net.yacy.search.Switchboard;
 import net.yacy.server.http.ChunkedInputStream;
@@ -132,7 +152,7 @@ public class UrlProxyServlet extends HttpServlet implements Servlet {
             hostwithport += ":" + proxyurl.getPort();
         }
         // 4 - get target url
-        RequestHeader yacyRequestHeader = ProxyHandler.convertHeaderFromJetty(request);
+        RequestHeader yacyRequestHeader = ServletRequestHeaderAdapter.from(request);
         yacyRequestHeader.remove(RequestHeader.KEEP_ALIVE);
         yacyRequestHeader.remove(HeaderFramework.CONTENT_LENGTH);
         

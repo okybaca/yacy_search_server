@@ -20,7 +20,10 @@ RUN for i in 1 2 3; do \
 # set current working dir & copy sources
 WORKDIR /opt
 COPY . /opt/yacy_search_server/
-RUN ant compile -f /opt/yacy_search_server/build.xml
+# .git dir deleted here because .git is needed during the build to deterime the version,
+# but isn't required at runtime
+RUN ant compile -f /opt/yacy_search_server/build.xml \
+    && rm -fr /opt/yacy_search_server/.git
 
 # Set initial admin password: "yacy" (encoded with custom yacy md5 function net.yacy.cora.order.Digest.encodeMD5Hex())
 RUN sed -i "/adminAccountBase64MD5=/c\adminAccountBase64MD5=MD5:8cffbc0d66567a0987a4aba1ec46d63c" /opt/yacy_search_server/defaults/yacy.init && \
@@ -29,11 +32,6 @@ RUN sed -i "/adminAccountBase64MD5=/c\adminAccountBase64MD5=MD5:8cffbc0d66567a09
 
 ## build final image
 FROM eclipse-temurin:24-jdk-noble AS app
-RUN for i in 1 2 3; do \
-      apt-get update && break || sleep 5; \
-    done && \
-    apt-get install -y --no-install-recommends wkhtmltopdf xvfb ghostscript && \
-    rm -rf /var/lib/apt/lists/*
 
 LABEL maintainer="Michael Peter Christen <mc@yacy.net>"
 

@@ -25,9 +25,11 @@ import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.MalformedURLException;
 import java.security.Principal;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
 import java.util.Enumeration;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import javax.servlet.AsyncContext;
@@ -48,8 +50,6 @@ import javax.servlet.http.Part;
 import net.yacy.cora.document.id.DigestURL;
 import net.yacy.cora.document.id.MultiProtocolURL;
 import net.yacy.cora.util.NumberTools;
-import org.eclipse.jetty.server.CookieCutter;
-import org.eclipse.jetty.util.URIUtil;
 
 /**
  * YaCy servlet request header.
@@ -139,8 +139,10 @@ public class RequestHeader extends HeaderFramework implements HttpServletRequest
     }
 
     public boolean accessFromLocalhost() {
-        // authorization for localhost, only if flag is set to grant localhost access as admin
-        final String clientIP = this.getRemoteAddr();
+        // authorization for localhost, only if flag is set to grant localhost access as admin.
+        // This is an access-control decision, therefore the true socket peer must be used:
+        // the client-controlled (and trivially spoofable) X-Real-IP header must NOT be honored here.
+        final String clientIP = this.getRemoteSocketAddr();
         if ( !Domains.isLocalhost(clientIP) ) {
             return false;
         }
@@ -235,9 +237,22 @@ public class RequestHeader extends HeaderFramework implements HttpServletRequest
         }
 		String cstr = super.get(COOKIE);
 		if (cstr != null) {
-		    CookieCutter cc = new CookieCutter(); // reuse jetty cookie parser
-		    cc.addCookieField(cstr);
-		    return cc.getCookies();
+		    // parse the Cookie request header (RFC 6265: pairs separated by ';')
+		    final List<Cookie> cookies = new ArrayList<Cookie>();
+		    for (final String pair: cstr.split(";")) {
+		        final int eq = pair.indexOf('=');
+		        if (eq < 0) continue;
+		        final String name = pair.substring(0, eq).trim();
+		        String value = pair.substring(eq + 1).trim();
+		        if (value.length() > 1 && value.charAt(0) == '"' && value.endsWith("\"")) value = value.substring(1, value.length() - 1);
+		        if (name.isEmpty() || name.charAt(0) == '$') continue; // skip RFC 2965 attributes
+		        try {
+		            cookies.add(new Cookie(name, value));
+		        } catch (final IllegalArgumentException e) {
+		            // skip cookie with a name not accepted by the servlet API (reserved token)
+		        }
+		    }
+		    return cookies.isEmpty() ? null : cookies.toArray(new Cookie[cookies.size()]);
 		}
 		return null;
     }
@@ -339,6 +354,9 @@ public class RequestHeader extends HeaderFramework implements HttpServletRequest
 		return null;
     }
 
+    // Invariant relied on for authorization: the role/principal come solely from the servlet
+    // container's authentication. Do not change these to derive from headers/attributes (which
+    // are client-controllable), else authorization based on them becomes spoofable.
     @Override
     public boolean isUserInRole(String role) {
         if (_request != null) {
@@ -377,7 +395,12 @@ public class RequestHeader extends HeaderFramework implements HttpServletRequest
             return _request.getRequestURL();
         }
 		StringBuffer sbuf = new StringBuffer(32);
-		URIUtil.appendSchemeHostPort(sbuf, this.getScheme(), this.getServerName(), this.getServerPort());
+		final String scheme = this.getScheme();
+		final int port = this.getServerPort();
+		sbuf.append(scheme).append("://").append(this.getServerName());
+		if (port > 0 && !(("http".equals(scheme) && port == 80) || ("https".equals(scheme) && port == 443))) {
+		    sbuf.append(':').append(port);
+		}
 		sbuf.append(this.getRequestURI());
 		return sbuf;
     }
@@ -471,7 +494,6 @@ public class RequestHeader extends HeaderFramework implements HttpServletRequest
         }
 
         super.remove(AUTHORIZATION);
-        // TODO: take care of legacy login cookie (and possibly cached UserDB login status)
 
     }
 
@@ -679,6 +701,35 @@ public class RequestHeader extends HeaderFramework implements HttpServletRequest
 		return super.get(HeaderFramework.CONNECTION_PROP_CLIENTIP);
     }
 
+    /**
+     * The IP address of the host that opened the TCP connection (the real socket peer).
+     * <p>
+     * In contrast to {@link #getRemoteAddr()} and {@link #client(ServletRequest)} this
+     * <b>never</b> honors the client-controlled X-Real-IP request header. It must therefore
+     * be used for all authentication and access-control decisions: X-Real-IP is trivially
+     * spoofable by a direct client and must only be trusted for peer routing behind a
+     * trusted reverse proxy, not for authentication.
+     *
+     * @return the socket peer IP address
+     */
+    public String getRemoteSocketAddr() {
+        if (this._request != null) {
+            return this._request.getRemoteAddr();
+        }
+        return super.get(HeaderFramework.CONNECTION_PROP_CLIENTIP);
+    }
+
+    /**
+     * Resolve the client IP for peer routing and logging. This honors the X-Real-IP
+     * request header (set e.g. by an nginx reverse proxy via
+     * "proxy_set_header X-Real-IP $remote_addr;").
+     * <p>
+     * <b>Do not use this for authentication or access control</b> - the header is
+     * client-controlled and spoofable. Use {@link #getRemoteSocketAddr()} for that.
+     *
+     * @param request the servlet request
+     * @return the routing client IP address
+     */
     public static String client(final ServletRequest request) {
         String clientHost = request.getRemoteAddr();
         if (request instanceof HttpServletRequest) {

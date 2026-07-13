@@ -5,41 +5,70 @@
     <title>YaCy '#[clientname]#': LLM Selection</title>
     #%env/templates/metas.template%#
   </head>
-  <body id="IndexControl" data-llm-service="#[llm_service]#" data-llm-hoststub="#[llm_hoststub]#" data-llm-apikey="#[llm_apikey]#" data-model-capabilities="#[model_capabilities]#">
+  <body id="IndexControl" data-llm-service="#[llm_service]#" data-llm-hoststub="#[llm_hoststub]#" data-llm-apikey="#[llm_apikey]#" data-model-capabilities="#[model_capabilities]#" data-service-num-ctx="#[service_num_ctx_json]#">
     #%env/templates/header.template%#
     #%env/templates/submenuAI.template%#
     <script>
       let availableModels = [];
 
       const downloadActivities = new Map();
+      const testActivities = new Map();
       let activeDownloadCount = 0;
       const beforeUnloadHandler = event => {
+        const hasActiveTests = hasRunningCapabilityTests();
+        const hasActiveDownloads = activeDownloadCount > 0;
+        if (!hasActiveTests && !hasActiveDownloads) {
+          return;
+        }
         event.preventDefault();
-        event.returnValue = "Model downloads are still running. Please wait until they finish.";
+        event.returnValue = hasActiveTests
+          ? "Production model tests are still running. Please wait until they finish."
+          : "Model downloads are still running. Please wait until they finish.";
       };
       // Localization-friendly test strings and hints (translate/tune as needed)
       const TEST_STRINGS = {
         toolingEndpointPath: "/v1/chat/completions", // Endpoint used to probe tooling capability on OpenAI-compatible APIs
+        thinkingUserMessage: "Hello", // User prompt for thinking capability test
         toolingSystemMessage: "You are a home assistant.", // System prompt for tooling capability test
         toolingUserMessage: "Switch on the light", // User prompt for tooling capability test
         visionSystemMessage: "you read out images", // System prompt for vision capability test
         visionUserMessage: "what is in the image?", // User prompt for vision capability test
         visionExpectedText: "42", // Expected mention in LLM response when reading the test image
-        visionTestImagePath: "env/grafics/llmtest.png" // Image used for the vision capability test
+        visionTestImagePath: "env/grafics/llmtest.png", // Image used for the vision capability test
+        formatSystemMessage: "You are a mood classifier. Identify the mood of the request."
       };
 
-      const PRODUCTION_MODEL_TOTAL_COLUMNS = 15;
+      const FORMAT_TEST_CASES = [
+        { text: "I hate programming", expectedMood: "angry" },
+        { text: "I love programming", expectedMood: "happy" },
+        { text: "Wait, that worked perfectly?", expectedMood: "surprised" }
+      ];
+
+      const FORMAT_TEST_SCHEMA = {
+        title: "Classifier",
+        type: "object",
+        properties: {
+          mood: { type: "literal", enum: ["surprised", "angry", "happy"] }
+        },
+        required: ["mood"]
+      };
+
+      const PRODUCTION_MODEL_TOTAL_COLUMNS = 18;
       const PRODUCTION_MODEL_MODEL_COLUMN_INDEX = 1;
+      const PRODUCTION_MODEL_MAX_TOKENS_COLUMN_INDEX = 4;
       const PRODUCTION_MODEL_USAGE_COLUMN_START = 5;
-      const PRODUCTION_MODEL_USAGE_COLUMN_END = 11; // including
-      const PRODUCTION_MODEL_FEATURE_COLUMN_START = 12;
-      const PRODUCTION_MODEL_FEATURE_COLUMN_END = 13; // including
+      const PRODUCTION_MODEL_USAGE_COLUMN_END = 12; // including
+      const PRODUCTION_MODEL_FEATURE_COLUMN_START = 13;
+      const PRODUCTION_MODEL_FEATURE_COLUMN_END = 16; // including
       const PRODUCTION_MODEL_ACTION_COLUMN_INDEX = PRODUCTION_MODEL_TOTAL_COLUMNS - 1;
-      const PRODUCTION_MODEL_TOOLING_COLUMN_INDEX = PRODUCTION_MODEL_FEATURE_COLUMN_START;
-      const PRODUCTION_MODEL_VISION_COLUMN_INDEX = PRODUCTION_MODEL_FEATURE_COLUMN_START + 1;
+      const PRODUCTION_MODEL_THINKING_COLUMN_INDEX = PRODUCTION_MODEL_FEATURE_COLUMN_START;
+      const PRODUCTION_MODEL_TOOLING_COLUMN_INDEX = PRODUCTION_MODEL_FEATURE_COLUMN_START + 1;
+      const PRODUCTION_MODEL_VISION_COLUMN_INDEX = PRODUCTION_MODEL_FEATURE_COLUMN_START + 2;
+      const PRODUCTION_MODEL_FORMAT_COLUMN_INDEX = PRODUCTION_MODEL_FEATURE_COLUMN_START + 3;
       const PRODUCTION_MODEL_ENABLED_USAGE_COLUMNS = new Set([
         6,  // chat
-        11  // tldr
+        11, // tldr
+        12  // log-report
       ]);
       const PRODUCTION_MODEL_COLUMN_NAMES = [
         "service",
@@ -55,9 +84,12 @@
         "query",
         "qapairs",
         "tldr",
+        "logreport",
 
+        "thinking",
         "tooling",
-        "vision"
+        "vision",
+        "format"
       ];
       const PRODUCTION_MODEL_SUBMIT_URL = "LLMSelection_p.html";
       const TOOLING_EXPECTED_FUNCTION_NAME = "lightswitch";
@@ -66,27 +98,24 @@
       let persistedModelCapabilities = {};
 
       const RECOMMENDED_MODELS = [
-        //["hf.co/tiiuae/Falcon-H1-0.5B-Instruct-GGUF:Q4_K_M",  " 0.50","0.5GB", "english-only minimalistic model for small devices", "Technology Innovation Institute, Dubai", "falcon-llm-license"],
-        //["llama3.2:1b-instruct-q4_K_M",                       " 0.10",  "2GB", "A good 1B model", "Meta", "llama3.2"],
-        ["qwen2.5:1.5b-instruct-q4_K_M",                      " 0.88",  "2GB", "Good small model for 1GB RAM", "Alibaba", "apache-2.0"],
-        ["llama3.2:3b-instruct-q4_K_M",                       " 0.66",  "3GB", "A good 3B model", "Meta", "llama3.2"],
-        //["qwen3-vl:2b-instruct-q4_K_M",                       " 0.73",  "3GB", "A very small vision-model, can understand what is sees in images"],
+        ["qwen2.5:1.5b-instruct-q4_K_M",                      " 0.88",  "1GB", "Good small model for 2GB RAM", "Alibaba", "apache-2.0"],
+        ["llama3.2:3b-instruct-q4_K_M",                       " 0.66",  "2GB", "A good 3B model", "Meta", "llama3.2"],
+        ["qwen3:4b-instruct-2507-q4_K_M",                     " 7.70",  "3GB", "a good 4B model", "Alibaba", "apache-2.0"],
+        ["hf.co/janhq/Jan-v3-4B-base-instruct-gguf:Q4_K_M",   " 8.19",  "3GB", "a brilliant 4B model, post-trained with large teacher from qwen3:4b", "jan.ai", "apache-2.0"],
         ["hf.co/unsloth/medgemma-4b-it-GGUF:Q4_K_M",          " 0.60",  "4GB", "Medical Knowledge and Vision", "Google", "health-ai-developer-foundations"],
-        ["olmo-3:7b-instruct-q4_K_M",                         " 2.22",  "4GB", "open and accessible training data, open-source training code", "allenai.org", "apache-2.0"],
-		["qwen3:4b-instruct-2507-q4_K_M",                     " 7.70",  "3GB", "a good 4B model", "Alibaba", "apache-2.0"],
-		["hf.co/janhq/Jan-v3-4B-base-instruct-gguf:Q4_K_M",   " 8.19", "6GB", "a brilliant 4B model, post-trained with large teacher from qwen3:4b", "jan.ai", "apache-2.0"],
-		["ministral-3:14b-instruct-2512-q4_K_M",              " 8.55", "10GB", "European flagship model, strong multilangual, vision, agentic", "mistral.ai", "apache-2.0"],
-		["olmo-3.1:32b-instruct-q4_K_M",                      "10.25",  "20GB", "open and accessible training data, open-source training code", "allenai.org", "apache-2.0"],
-		//["phi4:14b-q4_K_M",                                   " 5.24", "10GB", "Strong, made with synthetic data", "Microsoft", "mit"],
-		//["gemma3:27b-it-q4_K_M",                              " 4.81", "20GB", "Strong content safety, multilingual support in over 140 languages", "google.com", "gemma"],
-        //["qwen3-vl:30b-a3b-instruct-q4_K_M",                  "17.33", "22GB", "Very fast, exceptional good 30B model, ranking above GPT-4-turbo, GPT-4.1-nano, GPT-o1, GPT-4o-mini", "Alibaba", "apache-2.0"],
-		["qwen3.5:9b-q4_K_M",                                 "18.37", "14GB", "multimodal, outstanding for its size, long-context 256K Tokens, strong instruction following model", "Alibaba", "apache-2.0"],
-		["hf.co/mradermacher/Ling-mini-2.0-GGUF:Q4_K_M",      "20.00", "20GB", "very fast 16B MoE model with 1.4B activated parameters per expert", "InclusionAI", "mit"],
-		["qwen3.5:35b-a3b-q4_K_M",                            "44.63", "25GB", "Very fast MoE, exceptional good 35B model with vision, ranking above GPT-4-turbo, GPT-4.1-nano, GPT-o1, GPT-4o-mini", "Alibaba", "apache-2.0"]
+        ["frob/qwen3.5-instruct:4b",                          " 8.52",  "4GB", "best model for its size, non-thinking version", "Alibaba", "apache-2.0"],
+        ["olmo-3:7b-instruct-q4_K_M",                         " 2.22",  "5GB", "open and accessible training data, open-source training code", "allenai.org", "apache-2.0"],
+        ["qwen3.5:9b-q4_K_M",                                 "18.37",  "7GB", "multimodal, outstanding for its size, long-context 256K Tokens, strong instruction following model", "Alibaba", "apache-2.0"],
+        ["gemma4:12b-it-qat",                                 "47.09",  "8GB", "Very mighty, very small model from Google", "Google", "apache-2.0"],
+        ["ministral-3:14b-instruct-2512-q4_K_M",              " 8.55", "10GB", "European flagship model, strong multilangual, vision, agentic", "mistral.ai", "apache-2.0"],
+        ["hf.co/mradermacher/Ling-mini-2.0-GGUF:Q4_K_M",      "20.00", "10GB", "very fast 16B MoE model with 1.4B activated parameters per expert", "InclusionAI", "mit"],
+        ["olmo-3.1:32b-instruct-q4_K_M",                      "10.25", "19GB", "open and accessible training data, open-source training code", "allenai.org", "apache-2.0"],
+		["qwen3.6:27b-mtp-q4_K_M",                            "70.84", "17GB", "Exceptional good 27B model with vision, ranking above GPT-4-turbo, GPT-4.1-nano, GPT-o1, GPT-4o-mini", "Alibaba", "apache-2.0"],
+        ["qwen3.6:35b-a3b-mtp-q4_K_M",                        "63.03", "22GB", "Almost as good as the 27B model, but much faster", "Alibaba", "apache-2.0"]
       ];
 	  
       const MODEL_TABLE_HEADERS = ["Model", "Ranking", "Size", "Description", "Provider", "License", "Actions"];
-      const AVAILABLE_MODEL_TABLE_HEADERS = ["Model", "Ranking", "Size", "Description", "Provider", "License", "Tooling", "Vision", "Actions"];
+      const AVAILABLE_MODEL_TABLE_HEADERS = ["Model", "Ranking", "Size", "Description", "Provider", "License", "Thinking", "Tooling", "Vision", "Format", "Actions"];
       const RECOMMENDED_MODEL_MAP = new Map(
         RECOMMENDED_MODELS.map(([name, ranking, size, description, provider, license]) => [
           name,
@@ -97,7 +126,21 @@
 
       /***
        ***  API functions to access Ollama or OpenAI endpoints (list/load/delete models)
+       ***
+       ***  All endpoint calls are routed through the YaCy-internal admin passthrough
+       ***  proxy (see LLMAdminProxyServlet.java): instead of calling the LLM endpoint
+       ***  directly, the browser calls the same API path on YaCy itself (same-origin)
+       ***  and passes the target endpoint as hoststub parameter. This keeps endpoints
+       ***  reachable which are only visible from the YaCy server (remote YaCy
+       ***  installations), avoids CORS/mixed-content issues and lets YaCy inject the
+       ***  stored api_key server-side. The proxy requires admin authentication, which
+       ***  the browser already holds on this page.
        ***/
+
+      function proxyUrl(hoststub, path) {
+        const target = (hoststub || "").trim().replace(/\/+$/, "");
+        return `${path}?hoststub=${encodeURIComponent(target)}`;
+      }
 
       async function fetchJsonOrThrow(url, options = {}) {
         const response = await fetch(url, options);
@@ -143,8 +186,10 @@
         if (!persistedModelCapabilities[key] || typeof persistedModelCapabilities[key] !== "object") {
             persistedModelCapabilities[key] = {};
         }
+        persistedModelCapabilities[key].thinking = normalizeCapabilityStatus(persistedModelCapabilities[key].thinking);
         persistedModelCapabilities[key].tooling = normalizeCapabilityStatus(persistedModelCapabilities[key].tooling);
         persistedModelCapabilities[key].vision = normalizeCapabilityStatus(persistedModelCapabilities[key].vision);
+        persistedModelCapabilities[key].format = normalizeCapabilityStatus(persistedModelCapabilities[key].format);
         return persistedModelCapabilities[key];
       }
 
@@ -152,11 +197,13 @@
         const key = modelCapabilityKey(service, hoststub, modelName);
         const entry = key ? persistedModelCapabilities[key] : null;
         if (!entry || typeof entry !== "object") {
-          return { tooling: "unknown", vision: "unknown" };
+          return { thinking: "unknown", tooling: "unknown", vision: "unknown", format: "unknown" };
         }
         return {
+          thinking: normalizeCapabilityStatus(entry.thinking),
           tooling: normalizeCapabilityStatus(entry.tooling),
-          vision: normalizeCapabilityStatus(entry.vision)
+          vision: normalizeCapabilityStatus(entry.vision),
+          format: normalizeCapabilityStatus(entry.format)
         };
       }
 
@@ -187,7 +234,7 @@
       }
 
       async function deleteOllamaModel(hoststub, modelName) {
-        const response = await fetch(`${hoststub}/api/delete`, {
+        const response = await fetch(proxyUrl(hoststub, "/api/delete"), {
           method: "DELETE",
           headers: {"Accept": "application/json", "Content-Type": "application/json"},
           body: JSON.stringify({ model: modelName })
@@ -199,29 +246,67 @@
         }
       }
 
-      async function downloadOllamaModel(hoststub, modelName) {
-        const response = await fetch(`${hoststub}/api/pull`, {
+      async function downloadOllamaModel(hoststub, modelName, onProgress) {
+        // stream: true keeps bytes flowing so no idle timeout in the proxy chain
+        // kills the connection during long pulls; ollama continues a pull
+        // server-side even if this connection drops, so leaving the page is safe
+        const response = await fetch(proxyUrl(hoststub, "/api/pull"), {
           method: "POST",
-          headers: {"Accept": "application/json", "Content-Type": "application/json"},
-          body: JSON.stringify({ model: modelName, stream: false })
+          headers: {"Accept": "application/x-ndjson", "Content-Type": "application/json"},
+          body: JSON.stringify({ model: modelName, stream: true })
         });
         if (response.status !== 200) {
           const error = new Error(`Failed to download model ${modelName}`);
           error.status = response.status;
           throw error;
         }
-        const payload = await response.json().catch(() => null);
-        if (payload && payload.error) {
-          const error = new Error(payload.error);
-          error.status = response.status;
-          error.payload = payload;
-          throw error;
+        // the body is NDJSON: one progress object per line; errors arrive
+        // mid-stream as {"error": ...} lines even though the HTTP status is 200
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffered = "";
+        let lastPayload = null;
+        const consumeLine = (line) => {
+          const trimmed = line.trim();
+          if (!trimmed) return;
+          let payload = null;
+          try {
+            payload = JSON.parse(trimmed);
+          } catch (parseError) {
+            return; // ignore malformed progress lines
+          }
+          if (payload.error) {
+            const error = new Error(payload.error);
+            error.status = response.status;
+            error.payload = payload;
+            throw error;
+          }
+          lastPayload = payload;
+          if (onProgress) onProgress(payload);
+        };
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffered += decoder.decode(value, { stream: true });
+          const lines = buffered.split("\n");
+          buffered = lines.pop();
+          for (const line of lines) consumeLine(line);
         }
-        return payload;
+        buffered += decoder.decode();
+        consumeLine(buffered);
+        return lastPayload;
       }
 
       async function requestModelsForService(service, hoststub) {
-        return service === "OLLAMA" ? fetchJsonOrThrow(`${hoststub}/api/tags`) : fetchJsonOrThrow(`${hoststub}/v1/models`);
+        const url = service === "OLLAMA" ? proxyUrl(hoststub, "/api/tags") : proxyUrl(hoststub, "/v1/models");
+        const options = {};
+        const apikeyEl = document.getElementById("apikey");
+        const apikey = apikeyEl ? apikeyEl.value.trim() : "";
+        if (apikey) {
+          // for endpoints which are not saved yet the proxy cannot look up the key itself
+          options.headers = { "Authorization": `Bearer ${apikey}` };
+        }
+        return fetchJsonOrThrow(url, options);
       }
 
       function handleModelLoadError(service, error) {
@@ -271,11 +356,17 @@
        ***/
       
       function updateBeforeUnloadGuard() {
-        if (activeDownloadCount > 0) {
+        if (activeDownloadCount > 0 || hasRunningCapabilityTests()) {
           window.addEventListener("beforeunload", beforeUnloadHandler);
         } else {
           window.removeEventListener("beforeunload", beforeUnloadHandler);
         }
+      }
+
+      function hasRunningCapabilityTests() {
+        return !!document.querySelector(
+          'tr[data-thinking-test-in-flight="true"], tr[data-tooling-test-in-flight="true"], tr[data-vision-test-in-flight="true"], tr[data-format-test-in-flight="true"]'
+        );
       }
 
       function getDownloadActivityElements() {
@@ -283,6 +374,96 @@
           container: document.getElementById("downloadActivityContainer"),
           list: document.getElementById("downloadActivityList")
         };
+      }
+
+      function getTestActivityElements() {
+        return {
+          container: document.getElementById("testActivityContainer"),
+          list: document.getElementById("testActivityList")
+        };
+      }
+
+      function addTestActivity(modelName, testName) {
+        const { container, list } = getTestActivityElements();
+        if (!container || !list || !modelName || !testName) return null;
+
+        const activityId = `test_${modelName}`;
+        const existing = testActivities.get(activityId);
+        if (existing) {
+          existing.activeTests.add(testName);
+          updateTestActivitySubtitle(existing);
+          return activityId;
+        }
+
+        const wrapper = document.createElement("div");
+        wrapper.className = "test-activity";
+        wrapper.dataset.activityId = activityId;
+        wrapper.style.marginBottom = "8px";
+        wrapper.style.padding = "8px";
+        wrapper.style.border = "1px solid #ddd";
+        wrapper.style.borderRadius = "4px";
+        wrapper.style.backgroundColor = "#f8f8f8";
+
+        const title = document.createElement("div");
+        title.className = "test-activity-title";
+        title.textContent = `Testing ${modelName}`;
+        title.style.fontWeight = "bold";
+        title.style.marginBottom = "4px";
+        wrapper.appendChild(title);
+
+        const progress = document.createElement("progress");
+        progress.max = 100;
+        progress.style.width = "100%";
+        progress.removeAttribute("value");
+        progress.setAttribute("aria-busy", "true");
+        wrapper.appendChild(progress);
+
+        const subtitle = document.createElement("div");
+        subtitle.className = "test-activity-subtitle";
+        subtitle.style.fontSize = "0.9em";
+        subtitle.style.marginTop = "4px";
+        wrapper.appendChild(subtitle);
+
+        list.appendChild(wrapper);
+        container.style.display = "block";
+        const activity = {
+          wrapper,
+          subtitle,
+          activeTests: new Set([testName])
+        };
+        updateTestActivitySubtitle(activity);
+        testActivities.set(activityId, activity);
+        return activityId;
+      }
+
+      function updateTestActivitySubtitle(activity) {
+        if (!activity || !activity.subtitle) return;
+        const names = Array.from(activity.activeTests);
+        activity.subtitle.textContent = names.length <= 1
+          ? `${names[0]} test in progress...`
+          : `${names.join(", ")} tests in progress...`;
+      }
+
+      function removeTestActivity(activityId, testName) {
+        const activity = testActivities.get(activityId);
+        if (!activity) return;
+        if (testName) {
+          activity.activeTests.delete(testName);
+        }
+        if (activity.activeTests.size > 0) {
+          updateTestActivitySubtitle(activity);
+          return;
+        }
+        if (activity.wrapper && activity.wrapper.parentNode) {
+          activity.wrapper.parentNode.removeChild(activity.wrapper);
+        }
+        if (testActivities.has(activityId)) {
+          testActivities.delete(activityId);
+        }
+        const { container, list } = getTestActivityElements();
+        if (container && list && !list.hasChildNodes()) {
+          container.style.display = "none";
+        }
       }
 
       function addDownloadActivity(modelName) {
@@ -327,6 +508,28 @@
         activeDownloadCount = downloadActivities.size;
         updateBeforeUnloadGuard();
         return activityId;
+      }
+
+      function updateDownloadActivity(activityId, payload) {
+        const wrapper = downloadActivities.get(activityId);
+        if (!wrapper || !payload) return;
+        const progress = wrapper.querySelector("progress");
+        const subtitle = wrapper.querySelector(".download-activity-subtitle");
+        const status = payload.status || "";
+        if (progress && typeof payload.total === "number" && payload.total > 0
+            && typeof payload.completed === "number") {
+          progress.value = Math.min(100, (payload.completed / payload.total) * 100);
+        }
+        if (subtitle) {
+          let text = status || "Download in progress…";
+          if (typeof payload.total === "number" && payload.total > 0
+              && typeof payload.completed === "number") {
+            const percent = Math.min(100, (payload.completed / payload.total) * 100);
+            const mb = (bytes) => (bytes / (1024 * 1024)).toFixed(0);
+            text = `${status} — ${percent.toFixed(1)}% (${mb(payload.completed)} / ${mb(payload.total)} MB)`;
+          }
+          subtitle.textContent = text;
+        }
       }
 
       function removeDownloadActivity(activityId) {
@@ -375,6 +578,13 @@
         } else {
           apikeyInput.disabled = false;
         }
+      }
+
+      // Service dropdown handler: reset the hoststub to the service default, then
+      // reflect the resulting endpoint in the Services table.
+      function serviceChanged() {
+        setHoststub();
+        syncSelectedServiceRow();
       }
 
       function applyPresetInference() {
@@ -464,8 +674,10 @@
             description: info.description || "",
             provider: info.provider || "",
             license: info.license || "",
+            thinking: capabilityStatusLabel(capabilities.thinking),
             tooling: capabilityStatusLabel(capabilities.tooling),
             vision: capabilityStatusLabel(capabilities.vision),
+            format: capabilityStatusLabel(capabilities.format),
             renderActions: () => createAvailableModelActionButtons(service, id)
           });
         });
@@ -539,8 +751,10 @@
                 row.description || "",
                 row.provider || "",
                 row.license || "",
+                row.thinking || "?",
                 row.tooling || "?",
-                row.vision || "?"
+                row.vision || "?",
+                row.format || "?"
               ]
             : [
                 row.model || "",
@@ -675,6 +889,57 @@
         upsertProductionModel(modelName);
       }
 
+      // max_tokens (num_predict) options start at 2048 = half of the default num_ctx (4096),
+      // so a freshly deployed model reserves output room that fits inside the default window.
+      const MAX_TOKEN_OPTIONS = ["2048", "4096", "8192", "16384", "32768", "65536", "131072", "262440"];
+      const DEFAULT_MAX_TOKENS = "2048";
+
+      function normalizeMaxTokenValue(value) {
+        const text = (value == null ? "" : String(value)).trim();
+        return text || DEFAULT_MAX_TOKENS;
+      }
+
+      // The per-row max_tokens cell is an editable <select> so the value can be
+      // changed per model after deployment; it is the persisted source of truth
+      // (the max_tokens field at the top of the page is only a default for the
+      // next deploy). This ensures such a select exists in the cell and selects
+      // the given value, adding a bespoke option if the value is not a preset.
+      function ensureMaxTokenSelect(cell, value) {
+        if (!cell) return;
+        const normalized = normalizeMaxTokenValue(value);
+        let select = cell.querySelector('select[data-role="max-tokens"]');
+        if (!select) {
+          select = document.createElement("select");
+          select.className = "form-control";
+          select.dataset.role = "max-tokens";
+          const optionValues = MAX_TOKEN_OPTIONS.includes(normalized)
+            ? MAX_TOKEN_OPTIONS
+            : [normalized, ...MAX_TOKEN_OPTIONS];
+          optionValues.forEach(v => {
+            const option = document.createElement("option");
+            option.value = v;
+            option.textContent = v;
+            select.appendChild(option);
+          });
+          cell.textContent = "";
+          cell.appendChild(select);
+          select.addEventListener("change", () => persistProductionModels());
+        } else if (!Array.from(select.options).some(o => o.value === normalized)) {
+          const option = document.createElement("option");
+          option.value = normalized;
+          option.textContent = normalized;
+          select.appendChild(option);
+        }
+        select.value = normalized;
+      }
+
+      function readMaxTokenValue(cell) {
+        if (!cell) return DEFAULT_MAX_TOKENS;
+        const select = cell.querySelector('select[data-role="max-tokens"]');
+        if (select) return normalizeMaxTokenValue(select.value);
+        return normalizeMaxTokenValue(cell.textContent);
+      }
+
       function upsertProductionModel(modelName) {
         const tbody = getProductionTableBody();
         if (!tbody) return;
@@ -683,13 +948,13 @@
         const serviceField = document.getElementById("service");
         const hoststubField = document.getElementById("hoststub");
         const apikeyField = document.getElementById("apikey");
-        const maxTokenField = document.getElementById("maxtoken");
 
         const service = serviceField ? serviceField.value : "";
         const hoststub = hoststubField ? hoststubField.value.trim() : "";
         const apikey = apikeyField ? apikeyField.value.trim() : "";
-        const maxToken = maxTokenField ? maxTokenField.value : "";
         const persistedCaps = getPersistedCapabilitiesForModel(service, hoststub, modelName);
+        // a newly deployed endpoint should also show up in the Services table
+        ensureServiceRow(service, hoststub);
 
         let targetRow = Array.from(tbody.querySelectorAll("tr")).find(row => {
           const modelCell = row.cells && row.cells[PRODUCTION_MODEL_MODEL_COLUMN_INDEX];
@@ -712,16 +977,26 @@
         }
 
         const cells = targetRow.cells;
-        const values = [service, modelName, hoststub, apikey, maxToken];
+        // a new row starts at the default max_tokens; an existing row keeps the
+        // per-row value the user may have edited in the Production Models Matrix
+        const effectiveMaxToken = isNewRow
+          ? DEFAULT_MAX_TOKENS
+          : readMaxTokenValue(cells[PRODUCTION_MODEL_MAX_TOKENS_COLUMN_INDEX]);
+        const values = [service, modelName, hoststub, apikey, effectiveMaxToken];
         values.forEach((value, index) => {
-          if (cells[index]) {
+          if (!cells[index]) return;
+          if (index === PRODUCTION_MODEL_MAX_TOKENS_COLUMN_INDEX) {
+            ensureMaxTokenSelect(cells[index], value);
+          } else {
             cells[index].textContent = value || "";
           }
         });
 
         ensureProductionRowUsageCells(targetRow, !hadRowsBeforeInsert);
+        setThinkingFlagForRow(targetRow, persistedCaps.thinking);
         setToolingFlagForRow(targetRow, persistedCaps.tooling);
         setVisionFlagForRow(targetRow, persistedCaps.vision);
+        setFormatFlagForRow(targetRow, persistedCaps.format);
         ensureProductionRowActionButton(targetRow);
         persistProductionModels();
         scheduleCapabilityVerificationForRow(targetRow, persistedCaps);
@@ -740,6 +1015,8 @@
           for (let i = 0; i < missingCells; i += 1) {
             row.appendChild(document.createElement("td"));
           }
+          const maxTokenCell = row.cells[PRODUCTION_MODEL_MAX_TOKENS_COLUMN_INDEX];
+          ensureMaxTokenSelect(maxTokenCell, readMaxTokenValue(maxTokenCell));
           ensureProductionRowUsageCells(row, false);
           ensureProductionRowActionButton(row);
           scheduleCapabilityVerificationForRow(row);
@@ -757,11 +1034,18 @@
         const apikey = row.cells[3] ? row.cells[3].textContent.trim() : "";
         if (!service || !modelName || !hoststub) return;
         const statuses = capabilityStatuses || getPersistedCapabilitiesForModel(service, hoststub, modelName);
+        if (statuses.thinking === "unknown") {
+          triggerThinkingCapabilityVerification(row, { service, hoststub, modelName, apikey });
+          return;
+        }
         if (statuses.tooling === "unknown") {
           triggerToolingCapabilityVerification(row, { service, hoststub, modelName, apikey });
         }
         if (statuses.vision === "unknown") {
           triggerVisionCapabilityVerification(row, { service, hoststub, modelName, apikey });
+        }
+        if (statuses.format === "unknown") {
+          triggerFormatCapabilityVerification(row, { service, hoststub, modelName, apikey });
         }
       }
 
@@ -779,6 +1063,94 @@
           body: JSON.stringify({ inference_system })
         }).catch(err => {
           console.error("Failed to persist inference system", err);
+        });
+      }
+
+      const SERVICE_DEFAULT_NUM_CTX = 4096;
+      // fixed num_ctx choices (4k..256k); max_tokens additionally offers 2048 below this range
+      const NUM_CTX_OPTIONS = ["4096", "8192", "16384", "32768", "65536", "131072", "262440"];
+      let storedServiceNumCtx = {};
+
+      function normalizeHoststubJs(hoststub) {
+        return (hoststub == null ? "" : String(hoststub)).trim().replace(/\/+$/, "");
+      }
+
+      // Build the fixed-option num_ctx <select> for a Services-table cell. Auto-saves on
+      // change, like the other inputs on this page.
+      function createNumCtxSelect(hoststub, value) {
+        const normalized = String(value || SERVICE_DEFAULT_NUM_CTX);
+        const select = document.createElement("select");
+        select.className = "form-control service-num-ctx";
+        select.dataset.hoststub = hoststub;
+        select.style.width = "140px";
+        const optionValues = NUM_CTX_OPTIONS.includes(normalized) ? NUM_CTX_OPTIONS : [normalized, ...NUM_CTX_OPTIONS];
+        optionValues.forEach(v => {
+          const option = document.createElement("option");
+          option.value = v;
+          option.textContent = v;
+          select.appendChild(option);
+        });
+        select.value = normalized;
+        select.addEventListener("change", () => saveServiceNumCtx());
+        return select;
+      }
+
+      // Populate the server-rendered num_ctx cells (.num-ctx-cell) with their selects.
+      function initServiceRows() {
+        document.querySelectorAll("#servicesTable tbody .num-ctx-cell").forEach(cell => {
+          if (cell.querySelector("select")) return;
+          cell.appendChild(createNumCtxSelect(cell.dataset.hoststub || "", cell.dataset.numCtx));
+        });
+      }
+
+      // Ensure the Services table has a row for the given endpoint. Server-rendered rows
+      // exist for deployed endpoints; this adds a row for a service that is selected in
+      // the Service Selection box but not yet deployed, prefilled with its stored window
+      // or the default. Existing rows (and any edits) are left untouched.
+      function ensureServiceRow(service, hoststub) {
+        const tbody = document.querySelector("#servicesTable tbody");
+        const key = normalizeHoststubJs(hoststub);
+        if (!tbody || !key) return;
+        const present = Array.from(tbody.querySelectorAll(".service-num-ctx"))
+          .some(sel => normalizeHoststubJs(sel.dataset.hoststub) === key);
+        if (present) return;
+        const value = storedServiceNumCtx[key] || SERVICE_DEFAULT_NUM_CTX;
+        const tr = document.createElement("tr");
+        const tdService = document.createElement("td");
+        tdService.textContent = service || "";
+        const tdHost = document.createElement("td");
+        tdHost.textContent = key;
+        const tdCtx = document.createElement("td");
+        tdCtx.className = "num-ctx-cell";
+        tdCtx.dataset.hoststub = key;
+        tdCtx.dataset.numCtx = value;
+        tdCtx.appendChild(createNumCtxSelect(key, value));
+        tr.appendChild(tdService);
+        tr.appendChild(tdHost);
+        tr.appendChild(tdCtx);
+        tbody.appendChild(tr);
+      }
+
+      // Reflect the currently selected Service Selection endpoint in the Services table.
+      function syncSelectedServiceRow() {
+        const serviceSelect = document.getElementById("service");
+        const hoststubInput = document.getElementById("hoststub");
+        if (!serviceSelect || !hoststubInput) return;
+        ensureServiceRow(serviceSelect.value, hoststubInput.value);
+      }
+
+      function saveServiceNumCtx() {
+        const service_num_ctx = {};
+        document.querySelectorAll("#servicesTable .service-num-ctx").forEach(sel => {
+          const hoststub = (sel.dataset.hoststub || "").trim();
+          const value = parseInt(sel.value, 10);
+          if (hoststub && Number.isFinite(value) && value > 0) service_num_ctx[hoststub] = value;
+        });
+        fetch(PRODUCTION_MODEL_SUBMIT_URL, {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ service_num_ctx })
+        }).catch(err => {
+          console.error("Failed to persist service context windows", err);
         });
       }
 
@@ -940,6 +1312,8 @@
             } else if (index >= PRODUCTION_MODEL_USAGE_COLUMN_START && index <= PRODUCTION_MODEL_USAGE_COLUMN_END) {
               const checkbox = row.cells[index] ? row.cells[index].querySelector('input[type="checkbox"]') : null;
               rowData[columnName] = checkbox && isSelectableUsageColumn(index) ? checkbox.checked : false;
+            } else if (index === PRODUCTION_MODEL_MAX_TOKENS_COLUMN_INDEX) {
+              rowData[columnName] = readMaxTokenValue(row.cells[index]);
             } else {
               rowData[columnName] = row.cells[index] ? row.cells[index].textContent.trim() : "";
             }
@@ -969,6 +1343,140 @@
         updateAvailableModelButtons();
       }
 
+      function maybeApplyNoThinkingParameters(service, hoststub, modelName, payload) {
+        if (!payload) return payload;
+        const capabilities = getPersistedCapabilitiesForModel(service, hoststub, modelName);
+        if (capabilities.thinking === "supported") {
+          payload.reasoning_effort = "none";
+          payload.enable_thinking = false;
+        }
+        return payload;
+      }
+
+      function buildThinkingTestPayload(modelName) {
+        return {
+          model: modelName,
+          temperature: 0.1,
+          max_tokens: 64,
+          messages: [
+            { role: "user", content: TEST_STRINGS.thinkingUserMessage }
+          ],
+          stream: true
+        };
+      }
+
+      function chunkContainsThinkingTokens(chunkText) {
+        if (!chunkText) return false;
+        return /<think\b/i.test(chunkText)
+          || /"reasoning_content"\s*:/i.test(chunkText)
+          || /"reasoning"\s*:/i.test(chunkText)
+          || /"thinking"\s*:/i.test(chunkText);
+      }
+
+      function setThinkingFlagForRow(row, status) {
+        if (!row || row.cells.length <= PRODUCTION_MODEL_THINKING_COLUMN_INDEX) {
+          return;
+        }
+        const cell = row.cells[PRODUCTION_MODEL_THINKING_COLUMN_INDEX];
+        if (!cell) return;
+        cell.textContent = capabilityStatusLabel(status);
+      }
+
+      function triggerThinkingCapabilityVerification(row, { service, hoststub, modelName, apikey }) {
+        if (!row) return;
+        const normalizedHoststub = (hoststub || "").trim();
+        if (!normalizedHoststub || !modelName) {
+          return;
+        }
+        if (row.dataset.thinkingTestInFlight === "true") {
+          return;
+        }
+        row.dataset.thinkingTestInFlight = "true";
+        const activityId = addTestActivity(modelName, "thinking");
+        updateBeforeUnloadGuard();
+        runThinkingCapabilityTest(service, normalizedHoststub, modelName, apikey)
+          .then(success => {
+            const rowStillMounted = !!(document && document.body && document.body.contains(row));
+            setPersistedCapability(service, normalizedHoststub, modelName, "thinking", success ? "supported" : "unsupported");
+            if (!rowStillMounted) {
+              persistProductionModels();
+              return;
+            }
+            setThinkingFlagForRow(row, success ? "supported" : "unsupported");
+            persistProductionModels();
+            updateAvailableModelCapabilityCells(service, normalizedHoststub, modelName);
+            scheduleCapabilityVerificationForRow(row, getPersistedCapabilitiesForModel(service, normalizedHoststub, modelName));
+          })
+          .catch(error => {
+            if (isCapabilityUnsupportedError(error)) {
+              setPersistedCapability(service, normalizedHoststub, modelName, "thinking", "unsupported");
+              setThinkingFlagForRow(row, "unsupported");
+              persistProductionModels();
+              updateAvailableModelCapabilityCells(service, normalizedHoststub, modelName);
+              scheduleCapabilityVerificationForRow(row, getPersistedCapabilitiesForModel(service, normalizedHoststub, modelName));
+              return;
+            }
+            console.warn(`Thinking capability check failed for model "${modelName}".`, error);
+          })
+          .finally(() => {
+            delete row.dataset.thinkingTestInFlight;
+            if (activityId) removeTestActivity(activityId, "thinking");
+            updateBeforeUnloadGuard();
+          });
+      }
+
+      async function runThinkingCapabilityTest(service, hoststub, modelName, apikey) {
+        const endpointBase = hoststub.replace(/\/+$/, "");
+        if (!endpointBase) {
+          return false;
+        }
+        const targetUrl = proxyUrl(endpointBase, TEST_STRINGS.toolingEndpointPath);
+        const headers = { "Content-Type": "application/json" };
+        if (apikey) {
+          headers.Authorization = `Bearer ${apikey}`;
+        }
+        const controller = new AbortController();
+        const response = await fetch(targetUrl, {
+          method: "POST",
+          headers,
+          body: JSON.stringify(buildThinkingTestPayload(modelName)),
+          signal: controller.signal
+        });
+        if (!response.ok) {
+          const error = new Error(`HTTP status ${response.status}`);
+          error.status = response.status;
+          throw error;
+        }
+        if (!response.body) {
+          return false;
+        }
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let detectedThinking = false;
+        try {
+          while (true) {
+            const { value, done } = await reader.read();
+            if (done) break;
+            const chunkText = decoder.decode(value, { stream: true });
+            if (chunkContainsThinkingTokens(chunkText)) {
+              detectedThinking = true;
+              controller.abort();
+              break;
+            }
+          }
+        } catch (error) {
+          if (!(detectedThinking && error && error.name === "AbortError")) {
+            throw error;
+          }
+        } finally {
+          try {
+            reader.releaseLock();
+          } catch (error) {
+          }
+        }
+        return detectedThinking;
+      }
+
       /**
        * Tooling capability check
        */
@@ -982,7 +1490,9 @@
           return;
         }
         row.dataset.toolingTestInFlight = "true";
-        runToolingCapabilityTest(normalizedHoststub, modelName, apikey)
+        const activityId = addTestActivity(modelName, "tooling");
+        updateBeforeUnloadGuard();
+        runToolingCapabilityTest(service, normalizedHoststub, modelName, apikey)
           .then(success => {
             const rowStillMounted = !!(document && document.body && document.body.contains(row));
             setPersistedCapability(service, normalizedHoststub, modelName, "tooling", success ? "supported" : "unsupported");
@@ -1006,20 +1516,22 @@
           })
           .finally(() => {
             delete row.dataset.toolingTestInFlight;
+            if (activityId) removeTestActivity(activityId, "tooling");
+            updateBeforeUnloadGuard();
           });
       }
 
-      async function runToolingCapabilityTest(hoststub, modelName, apikey) {
+      async function runToolingCapabilityTest(service, hoststub, modelName, apikey) {
         const endpointBase = hoststub.replace(/\/+$/, "");
         if (!endpointBase) {
           return false;
         }
-        const targetUrl = `${endpointBase}${TEST_STRINGS.toolingEndpointPath}`;
+        const targetUrl = proxyUrl(endpointBase, TEST_STRINGS.toolingEndpointPath);
         const headers = { "Content-Type": "application/json" };
         if (apikey) {
           headers.Authorization = `Bearer ${apikey}`;
         }
-        const payload = buildToolingTestPayload(modelName);
+        const payload = buildToolingTestPayload(service, hoststub, modelName);
         const response = await fetch(targetUrl, {
           method: "POST",
           headers,
@@ -1034,8 +1546,8 @@
         return toolingResponseIncludesExpectedToolCall(result);
       }
 
-      function buildToolingTestPayload(modelName) {
-        return {
+      function buildToolingTestPayload(service, hoststub, modelName) {
+        return maybeApplyNoThinkingParameters(service, hoststub, modelName, {
           model: modelName,
           temperature: 0.1,
           max_tokens: 1024,
@@ -1063,7 +1575,7 @@
             }
           }],
           stream: false
-        };
+        });
       }
 
       function toolingResponseIncludesExpectedToolCall(response) {
@@ -1118,7 +1630,9 @@
           return;
         }
         row.dataset.visionTestInFlight = "true";
-        runVisionCapabilityTest(normalizedHoststub, modelName, apikey)
+        const activityId = addTestActivity(modelName, "vision");
+        updateBeforeUnloadGuard();
+        runVisionCapabilityTest(service, normalizedHoststub, modelName, apikey)
           .then(success => {
             const rowStillMounted = !!(document && document.body && document.body.contains(row));
             setPersistedCapability(service, normalizedHoststub, modelName, "vision", success ? "supported" : "unsupported");
@@ -1135,21 +1649,23 @@
           })
           .finally(() => {
             delete row.dataset.visionTestInFlight;
+            if (activityId) removeTestActivity(activityId, "vision");
+            updateBeforeUnloadGuard();
           });
       }
 
-      async function runVisionCapabilityTest(hoststub, modelName, apikey) {
+      async function runVisionCapabilityTest(service, hoststub, modelName, apikey) {
         const endpointBase = hoststub.replace(/\/+$/, "");
         if (!endpointBase) {
           return false;
         }
-        const targetUrl = `${endpointBase}${TEST_STRINGS.toolingEndpointPath}`;
+        const targetUrl = proxyUrl(endpointBase, TEST_STRINGS.toolingEndpointPath);
         const headers = { "Content-Type": "application/json" };
         if (apikey) {
           headers.Authorization = `Bearer ${apikey}`;
         }
         const base64Image = await loadVisionTestImageBase64();
-        const payload = buildVisionTestPayload(modelName, base64Image);
+        const payload = buildVisionTestPayload(service, hoststub, modelName, base64Image);
         const response = await fetch(targetUrl, {
           method: "POST",
           headers,
@@ -1164,8 +1680,8 @@
         return visionResponseContainsExpectedAnswer(result);
       }
 
-      function buildVisionTestPayload(modelName, base64Image) {
-        return {
+      function buildVisionTestPayload(service, hoststub, modelName, base64Image) {
+        return maybeApplyNoThinkingParameters(service, hoststub, modelName, {
           model: modelName,
           temperature: 0.1,
           max_tokens: 512,
@@ -1184,7 +1700,7 @@
               ]
             }
           ]
-        };
+        });
       }
 
       function visionResponseContainsExpectedAnswer(response) {
@@ -1276,6 +1792,157 @@
         cell.textContent = capabilityStatusLabel(status);
       }
 
+      function triggerFormatCapabilityVerification(row, { service, hoststub, modelName, apikey }) {
+        if (!row) return;
+        const normalizedHoststub = (hoststub || "").trim();
+        if (!normalizedHoststub || !modelName) {
+          return;
+        }
+        if (row.dataset.formatTestInFlight === "true") {
+          return;
+        }
+        row.dataset.formatTestInFlight = "true";
+        const activityId = addTestActivity(modelName, "format");
+        updateBeforeUnloadGuard();
+        runFormatCapabilityTest(service, normalizedHoststub, modelName, apikey)
+          .then(success => {
+            const rowStillMounted = !!(document && document.body && document.body.contains(row));
+            setPersistedCapability(service, normalizedHoststub, modelName, "format", success ? "supported" : "unsupported");
+            if (!rowStillMounted) {
+              persistProductionModels();
+              return;
+            }
+            setFormatFlagForRow(row, success ? "supported" : "unsupported");
+            persistProductionModels();
+            updateAvailableModelCapabilityCells(service, normalizedHoststub, modelName);
+          })
+          .catch(error => {
+            if (isCapabilityUnsupportedError(error)) {
+              setPersistedCapability(service, normalizedHoststub, modelName, "format", "unsupported");
+              setFormatFlagForRow(row, "unsupported");
+              persistProductionModels();
+              updateAvailableModelCapabilityCells(service, normalizedHoststub, modelName);
+              return;
+            }
+            console.warn(`Format capability check failed for model "${modelName}".`, error);
+          })
+          .finally(() => {
+            delete row.dataset.formatTestInFlight;
+            if (activityId) removeTestActivity(activityId, "format");
+            updateBeforeUnloadGuard();
+          });
+      }
+
+      async function runFormatCapabilityTest(service, hoststub, modelName, apikey) {
+        const endpointBase = hoststub.replace(/\/+$/, "");
+        if (!endpointBase) {
+          return false;
+        }
+        for (const testCase of FORMAT_TEST_CASES) {
+          const mood = await runSingleFormatCapabilityTest(service, endpointBase, modelName, apikey, testCase.text);
+          if (mood !== testCase.expectedMood) {
+            return false;
+          }
+        }
+        return true;
+      }
+
+      async function runSingleFormatCapabilityTest(service, endpointBase, modelName, apikey, inputText) {
+        const targetUrl = proxyUrl(endpointBase, TEST_STRINGS.toolingEndpointPath);
+        const headers = { "Content-Type": "application/json" };
+        if (apikey) {
+          headers.Authorization = `Bearer ${apikey}`;
+        }
+        const payload = buildFormatTestPayload(service, endpointBase, modelName, inputText);
+        const response = await fetch(targetUrl, {
+          method: "POST",
+          headers,
+          body: JSON.stringify(payload)
+        });
+        if (!response.ok) {
+          const error = new Error(`HTTP status ${response.status}`);
+          error.status = response.status;
+          throw error;
+        }
+        const result = await response.json();
+        return extractMoodFromFormatResponse(result);
+      }
+
+      function buildFormatTestPayload(service, hoststub, modelName, inputText) {
+        return maybeApplyNoThinkingParameters(service, hoststub, modelName, {
+          model: modelName,
+          temperature: 0.1,
+          max_tokens: 128,
+          messages: [
+            { role: "system", content: TEST_STRINGS.formatSystemMessage },
+            { role: "user", content: inputText }
+          ],
+          stream: false,
+          response_format: {
+            type: "json_schema",
+            json_schema: {
+              strict: true,
+              schema: FORMAT_TEST_SCHEMA
+            }
+          }
+        });
+      }
+
+      function extractMoodFromFormatResponse(response) {
+        const candidates = [];
+        if (response && Array.isArray(response.choices)) {
+          response.choices.forEach(choice => {
+            if (choice && choice.message) {
+              candidates.push(choice.message);
+            }
+          });
+        }
+        if (response && response.message) {
+          candidates.push(response.message);
+        }
+        for (const message of candidates) {
+          const parsedMood = extractMoodFromMessage(message);
+          if (parsedMood) {
+            return parsedMood;
+          }
+        }
+        return "";
+      }
+
+      function extractMoodFromMessage(message) {
+        if (!message) return "";
+        if (message.parsed && typeof message.parsed === "object") {
+          const mood = normalizeMoodValue(message.parsed.mood);
+          if (mood) return mood;
+        }
+        if (message.content && typeof message.content === "object" && !Array.isArray(message.content)) {
+          const mood = normalizeMoodValue(message.content.mood);
+          if (mood) return mood;
+        }
+        const normalizedText = normalizeMessageText(message);
+        if (!normalizedText) return "";
+        try {
+          const parsed = JSON.parse(normalizedText);
+          return normalizeMoodValue(parsed && parsed.mood);
+        } catch (error) {
+          return "";
+        }
+      }
+
+      function normalizeMoodValue(value) {
+        const mood = typeof value === "string" ? value.trim().toLowerCase() : "";
+        return mood === "angry" || mood === "happy" || mood === "surprised" ? mood : "";
+      }
+
+      function setFormatFlagForRow(row, status) {
+        if (!row || row.cells.length <= PRODUCTION_MODEL_FORMAT_COLUMN_INDEX) {
+          return;
+        }
+        const cell = row.cells[PRODUCTION_MODEL_FORMAT_COLUMN_INDEX];
+        if (!cell) return;
+        cell.textContent = capabilityStatusLabel(status);
+      }
+
       function updateAvailableModelCapabilityCells(service, hoststub, modelName) {
         const container = document.getElementById("availableModelsContainer");
         if (!container) return;
@@ -1283,8 +1950,105 @@
         container.querySelectorAll("tbody tr").forEach(row => {
           const modelCell = row.cells && row.cells[0];
           if (!modelCell || modelCell.textContent.trim() !== modelName) return;
-          if (row.cells[6]) row.cells[6].textContent = capabilityStatusLabel(capabilities.tooling);
-          if (row.cells[7]) row.cells[7].textContent = capabilityStatusLabel(capabilities.vision);
+          if (row.cells[6]) row.cells[6].textContent = capabilityStatusLabel(capabilities.thinking);
+          if (row.cells[7]) row.cells[7].textContent = capabilityStatusLabel(capabilities.tooling);
+          if (row.cells[8]) row.cells[8].textContent = capabilityStatusLabel(capabilities.vision);
+          if (row.cells[9]) row.cells[9].textContent = capabilityStatusLabel(capabilities.format);
+        });
+      }
+
+      /*** pending pulls are remembered in localStorage so that a reloaded page
+       *** can re-attach to downloads which are still running on the ollama server
+       *** (a second /api/pull for the same model joins the running download) ***/
+
+      const PENDING_PULLS_STORAGE_KEY = "yacy.llm.pendingPulls";
+      const PENDING_PULL_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+
+      function readPendingPulls() {
+        try {
+          const parsed = JSON.parse(window.localStorage.getItem(PENDING_PULLS_STORAGE_KEY) || "[]");
+          return Array.isArray(parsed) ? parsed : [];
+        } catch (storageError) {
+          return [];
+        }
+      }
+
+      function writePendingPulls(entries) {
+        try {
+          if (entries.length === 0) {
+            window.localStorage.removeItem(PENDING_PULLS_STORAGE_KEY);
+          } else {
+            window.localStorage.setItem(PENDING_PULLS_STORAGE_KEY, JSON.stringify(entries));
+          }
+        } catch (storageError) {
+          // storage unavailable: downloads still work, they just cannot be re-attached
+        }
+      }
+
+      function addPendingPull(hoststub, modelName) {
+        const entries = readPendingPulls().filter(e => !(e.hoststub === hoststub && e.model === modelName));
+        entries.push({ hoststub, model: modelName, startedAt: Date.now() });
+        writePendingPulls(entries);
+      }
+
+      function removePendingPull(hoststub, modelName) {
+        writePendingPulls(readPendingPulls().filter(e => !(e.hoststub === hoststub && e.model === modelName)));
+      }
+
+      async function performModelDownload(hoststub, modelName, downloadBtn) {
+        const activityId = addDownloadActivity(modelName);
+        if (downloadBtn) downloadBtn.disabled = true;
+        addPendingPull(hoststub, modelName);
+        let downloadError = null;
+        try {
+          await downloadOllamaModel(hoststub, modelName, (payload) => {
+            if (activityId) updateDownloadActivity(activityId, payload);
+          });
+          console.log(`Model ${modelName} is now available on server ${hoststub}.`);
+        } catch (err) {
+          downloadError = err;
+          console.error("Error during model pull request:", err);
+        } finally {
+          if (downloadBtn) downloadBtn.disabled = false;
+          if (activityId) {
+            removeDownloadActivity(activityId);
+          }
+          try {
+            await loadModelList();
+          } catch (refreshError) {
+            console.error("Failed to refresh models after download:", refreshError);
+          }
+          // a dropped connection is not necessarily a failed pull: ollama keeps
+          // pulling server-side, so only report an error if the model is still missing
+          const stillMissing = downloadError && !availableModels.includes(modelName);
+          const connectionLost = stillMissing && !downloadError.payload
+              && !(typeof downloadError.status === "number" && downloadError.status !== 200);
+          if (connectionLost) {
+            // keep the pending entry: a page reload will re-attach to the running pull
+            alert(`Connection lost while pulling model ${modelName} from server ${hoststub}. The download continues on the server; reload this page to re-attach to its progress.`);
+          } else {
+            removePendingPull(hoststub, modelName);
+            if (stillMissing) {
+              const status = typeof downloadError.status === "number" ? downloadError.status : null;
+              const message = downloadError.payload
+                ? `Failed to download model ${modelName}: ${downloadError.message}`
+                : `Failed to download model ${modelName}. HTTP status: ${status}`;
+              alert(message);
+            }
+          }
+        }
+      }
+
+      function resumePendingPulls() {
+        const now = Date.now();
+        const entries = readPendingPulls().filter(e => e && e.hoststub && e.model
+            && (typeof e.startedAt !== "number" || now - e.startedAt < PENDING_PULL_MAX_AGE_MS));
+        writePendingPulls(entries);
+        entries.forEach(entry => {
+          // re-issuing the pull joins the running download and streams its progress;
+          // if the pull already finished it returns success almost immediately
+          performModelDownload(entry.hoststub, entry.model, null)
+            .catch(resumeError => console.error("Failed to resume model download:", resumeError));
         });
       }
 
@@ -1294,39 +2058,23 @@
         downloadBtn.className = "btn btn-primary btn-sm";
         downloadBtn.textContent = "Download";
         styleActionButton(downloadBtn);
-        downloadBtn.addEventListener("click", async () => {
-          const activityId = addDownloadActivity(modelName);
-          downloadBtn.disabled = true;
-          try {
-            await downloadOllamaModel(hoststub, modelName);
-            console.log(`Model ${modelName} is now available on server ${hoststub}.`);
-          } catch (err) {
-            const status = err && typeof err.status === "number" ? err.status : null;
-            const message = status
-              ? `Failed to download model ${modelName}. HTTP status: ${status}`
-              : `Error pulling model ${modelName} from server ${hoststub}. Check the console for details.`;
-            alert(message);
-            console.error("Error during model pull request:", err);
-          } finally {
-            downloadBtn.disabled = false;
-            if (activityId) {
-              removeDownloadActivity(activityId);
-            }
-            try {
-              await loadModelList();
-            } catch (refreshError) {
-              console.error("Failed to refresh models after download:", refreshError);
-            }
-          }
-        });
+        downloadBtn.addEventListener("click", () => performModelDownload(hoststub, modelName, downloadBtn));
         return downloadBtn;
       }
 
       document.addEventListener("DOMContentLoaded", () => {
         try {
+          try {
+            storedServiceNumCtx = JSON.parse(document.body.dataset.serviceNumCtx || "{}") || {};
+          } catch (e) {
+            storedServiceNumCtx = {};
+          }
           persistedModelCapabilities = readPersistedModelCapabilities();
           normalizeProductionModelRows();
+          initServiceRows();
           applyPresetInference();
+          syncSelectedServiceRow();
+          resumePendingPulls();
           // auto-show available models if a preset inference exists
           const body = document.body;
           const presetService = (body.getAttribute("data-llm-service") || "").trim();
@@ -1359,7 +2107,7 @@
     <h2>LLM Selection</h2>
 
     <p>
-        Here you can pick models from a LLM model service to select them as production model.
+        Here you can pick models from an LLM model service to select them as production model.
         In the "Production Models Matrix" you can then assign each selected model a function inside YaCy
     </p>
     <p>
@@ -1370,7 +2118,7 @@
       <dl>
         <dt class="TableCellDark">service</dt>
         <dd>
-            <select name="service" id="service" class="form-control" onchange="setHoststub()">
+            <select name="service" id="service" class="form-control" onchange="serviceChanged()">
             <option value="OLLAMA" selected="selected">Ollama</option>
             <option value="LMSTUDIO">LMStudio</option>
             <option value="OPENAI">OpenAI</option>
@@ -1379,24 +2127,17 @@
         </dd>
 
         <dt class="TableCellDark">hoststub</dt>
-        <dd><input type="text" name="hoststub" id="hoststub" value="http://localhost:11434" size="30" maxlength="60" class="form-control"/>&nbsp; you can probably leave this to the default value
+        <dd><input type="text" name="hoststub" id="hoststub" value="http://localhost:11434" size="30" maxlength="60" class="form-control" onchange="syncSelectedServiceRow()"/>&nbsp; you can probably leave this to the default value
         </dd>
 
         <dt class="TableCellDark">api_key</dt>
         <dd><input type="text" name="apikey" id="apikey" value="" disabled=true size="30" maxlength="120" class="form-control"/>&nbsp; (not required for Ollama or LMStudio)
-        </dd>
-        
-        <dt class="TableCellDark">max_tokens</dt>
-        <dd>
-            <select id="maxtoken" name="maxtoken" class="form-control">
-                <option>4096</option>
-                <option>8192</option>
-                <option selected="selected">16384</option>
-                <option>32768</option>
-                <option>65536</option>
-                <option>131072</option>
-                <option>262440</option>
-            </select>&nbsp; You must set the Context Length in the LLM service to fit to your selected max_tokens; in Ollama you find a Context Length slider in the settings
+            <br/>
+            <small>
+                The selected service's context window (<code>num_ctx</code>) is shown and editable in the
+                <a href="#services">Services</a> table below. A model's generated-token cap (<code>max_tokens</code> =
+                Ollama <code>num_predict</code>) is set per model in the Production Models Matrix.
+            </small>
         </dd>
 
         <dt>&nbsp;</dt>
@@ -1405,6 +2146,36 @@
       </dl>
     </fieldset>
     </form>
+
+    <fieldset id="servicesContainer" style="display: block;"><a name="services"></a><legend>Services</legend>
+        <p>
+            <b>num_ctx</b> is the context window (in tokens) of the inference service &mdash; a per-service
+            value, shared by all models on that endpoint. It is the total budget for prompt <i>plus</i>
+            generated output; YaCy uses it to size prompts so they leave room to generate. The row for the
+            service selected above appears here automatically with its stored (or default) window.
+            This value is <b>advisory</b>: set it to match the window your backend actually serves
+            (Ollama: <code>OLLAMA_CONTEXT_LENGTH</code>, a Modelfile <code>PARAMETER num_ctx</code>, or the
+            Context Length setting). YaCy does not enforce it on the backend.
+        </p>
+        <table class="table table-striped" id="servicesTable">
+            <thead class="thead-dark">
+                <tr>
+                    <td>service</td>
+                    <td>hoststub</td>
+                    <td>num_ctx</td>
+                </tr>
+            </thead>
+            <tbody>
+        #{services}#
+            <tr>
+                <td>#[service]#</td>
+                <td>#[hoststub]#</td>
+                <td class="num-ctx-cell" data-hoststub="#[hoststub]#" data-num-ctx="#[num_ctx]#"></td>
+            </tr>
+        #{/services}#
+            </tbody>
+        </table>
+    </fieldset>
 
     <fieldset id="loadModelContainer" style="display:none"></fieldset>
     <fieldset id="downloadActivityContainer" style="display:none">
@@ -1415,6 +2186,9 @@
     <fieldset id="availableModelsContainer" style="display:none"><a name="availableModels"></a></fieldset>
 
     <fieldset id="productionModelsContainer" style="display: block;"><a name="productionModels"></a><legend>Production Models Matrix</legend>
+        <div id="testActivityContainer" style="display:none; margin-bottom:12px;">
+            <div id="testActivityList"></div>
+        </div>
         <table class="table table-striped" id="productionModelsTable">
             <thead class="thead-dark">
                 <tr>
@@ -1431,9 +2205,12 @@
                     <td class="narrow">search-query<br/><span class="info"><img src="env/grafics/i16.gif" width="16" height="16" alt="info"/><span>This model produces search queries to YaCy search from prompts in RAG or chat</span></span></td>
                     <td class="narrow">qa-pairs<br/><span class="info"><img src="env/grafics/i16.gif" width="16" height="16" alt="info"/><span>This model can be used to produce query-answer pairs which enhance search from chat prompts</span></span></td>
                     <td class="narrow">tldr-shortener<br/><span class="info"><img src="env/grafics/i16.gif" width="16" height="16" alt="info"/><span>This model is used to make summaries from web content</span></span></td>
+                    <td class="narrow">log-report<br/><span class="info"><img src="env/grafics/i16.gif" width="16" height="16" alt="info"/><span>This model evaluates YaCy runtime logs and creates self-enhancement reports</span></span></td>
                     
-                    <td>tooling</td>
-                    <td>vision</td>
+                    <td class="narrow">thinking<br/><span class="info"><img src="env/grafics/i16.gif" width="16" height="16" alt="info"/><span>we detect thinking only to be able to suppress thinking. thinking is not used in YaCy</span></span></td>
+                    <td class="narrow">tooling<br/><span class="info"><img src="env/grafics/i16.gif" width="16" height="16" alt="info"/><span>tooling is required for agentic abilities.</span></span></td>
+                    <td class="narrow">vision<br/><span class="info"><img src="env/grafics/i16.gif" width="16" height="16" alt="info"/><span>this enables image recognition in the chat</span></span></td>
+                    <td class="narrow">format<br/><span class="info"><img src="env/grafics/i16.gif" width="16" height="16" alt="info"/><span>this is required for classification</span></span></td>
                     <td>Actions</td>
                 </tr>
             </thead>
@@ -1453,9 +2230,12 @@
                 <td><input type="checkbox" #(query)#::checked=true#(/query)# disabled="disabled"></td>
                 <td><input type="checkbox" #(qapairs)#::checked=true#(/qapairs)# disabled="disabled"></td>
                 <td><input type="checkbox" #(tldr)#::checked=true#(/tldr)#></td>
+                <td><input type="checkbox" #(logreport)#::checked=true#(/logreport)#></td>
                 
+                <td>#[thinking]#</td>
                 <td>#[tooling]#</td>
                 <td>#[vision]#</td>
+                <td>#[format]#</td>
                 <td></td>
             </tr>
         #{/productionmodels}#

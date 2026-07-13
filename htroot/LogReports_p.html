@@ -1,0 +1,411 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <title>YaCy '#[clientname]#': Log Reports</title>
+    #%env/templates/metas.template%#
+    <link rel="stylesheet" href="js/styles/a11y-dark.min.css" type="text/css" />
+    <link rel="stylesheet" href="env/markdown.css" type="text/css" />
+    <style type="text/css">
+      .logreport-feeds {
+        margin: 0 0 16px 0;
+      }
+      /* two-column layout: navigation of existing reports left, selected report right */
+      .logreport-layout {
+        display: flex;
+        align-items: flex-start;
+        gap: 16px;
+      }
+      .logreport-nav {
+        flex: 0 0 260px;
+        max-height: 640px;
+        overflow: auto;
+        border: 1px solid #ddd;
+        background: #fff;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+      .logreport-nav li {
+        position: relative;
+        border-bottom: 1px solid #eee;
+      }
+      .logreport-nav a {
+        display: block;
+        padding: 8px 26px 8px 10px;
+        text-decoration: none;
+        color: #333;
+      }
+      .logreport-nav a:hover {
+        background: #f5f5f5;
+      }
+      /* small per-report delete button, deletes immediately without confirmation */
+      .logreport-nav a.nav-delete {
+        position: absolute;
+        top: 50%;
+        right: 4px;
+        transform: translateY(-50%);
+        padding: 0 6px;
+        font-size: 1.2em;
+        line-height: 1.2;
+        color: #999;
+      }
+      .logreport-nav a.nav-delete:hover {
+        color: #a94442;
+        background: none;
+      }
+      .logreport-nav li.selected a {
+        background: #eef4fa;
+        border-left: 4px solid #337ab7;
+        padding-left: 6px;
+        font-weight: bold;
+      }
+      .logreport-nav .nav-date {
+        display: block;
+        font-size: 0.9em;
+      }
+      .logreport-nav .nav-type {
+        display: block;
+        color: #888;
+        font-size: 0.8em;
+      }
+      .logreport-main {
+        flex: 1 1 auto;
+        min-width: 0;
+      }
+      .logreport-card {
+        border: 1px solid #ddd;
+        margin: 0 0 16px 0;
+        background: #fff;
+      }
+      .logreport-header {
+        background: #f5f5f5;
+        border-bottom: 1px solid #ddd;
+        padding: 10px 12px;
+      }
+      .logreport-title {
+        font-weight: bold;
+        margin: 0 0 4px 0;
+      }
+      .logreport-meta {
+        color: #666;
+        font-size: 0.9em;
+      }
+      .logreport-body {
+        white-space: pre-wrap;
+        word-break: break-word;
+        max-height: 520px;
+        overflow: auto;
+        margin: 0;
+        padding: 12px;
+        background: #fff;
+        border: 0;
+        font-family: Menlo, Consolas, monospace;
+        font-size: 12px;
+        line-height: 1.45;
+      }
+      /* markdown output styles come from the shared env/markdown.css (.markdown-body);
+         only the report container itself is styled locally. white-space must be
+         repeated here: the .logreport-body pre-wrap rule (raw markdown fallback)
+         would otherwise win over the shared .markdown-body rule, which renders the
+         newlines between the generated HTML blocks as visible empty lines */
+      .logreport-body.markdown-body {
+        max-width: 100%;
+        padding: 12px;
+        white-space: normal;
+      }
+      .logreport-empty {
+        border: 1px solid #ddd;
+        background: #f9f9f9;
+        padding: 14px;
+      }
+      .logreport-warning {
+        border: 1px solid #f0ad4e;
+        border-left: 6px solid #f0ad4e;
+        background: #fcf8e3;
+        color: #6b4f13;
+        padding: 12px;
+        margin: 10px 0 16px 0;
+      }
+      .logreport-actions {
+        margin: 0 0 16px 0;
+      }
+      .logreport-progress {
+        display: none;
+        align-items: center;
+        gap: 10px;
+        border: 1px solid #5bc0de;
+        border-left: 6px solid #5bc0de;
+        background: #eef9fc;
+        color: #245269;
+        padding: 12px;
+        margin: 10px 0 16px 0;
+      }
+      .logreport-progress .spinner {
+        width: 18px;
+        height: 18px;
+        border: 3px solid #b7dff0;
+        border-top-color: #31708f;
+        border-radius: 50%;
+        animation: logreport-spin 0.8s linear infinite;
+      }
+      @keyframes logreport-spin {
+        to { transform: rotate(360deg); }
+      }
+      .logreport-message {
+        border: 1px solid #5bc0de;
+        border-left: 6px solid #5bc0de;
+        background: #eef9fc;
+        color: #245269;
+        padding: 12px;
+        margin: 10px 0 16px 0;
+      }
+    </style>
+  </head>
+  <body id="LogReports">
+    #%env/templates/header.template%#
+    #%env/templates/submenuComputation.template%#
+
+    <h2>Log Reports</h2>
+
+    <!-- the report computation runs asynchronously on the server (LogReportService
+         manual job); this form only triggers it and returns immediately. While the
+         job is running the button is disabled, the progress box is shown and the
+         script below polls the page until the result is available -->
+    <form action="LogReports_p.html" method="post" accept-charset="UTF-8" class="logreport-actions" id="runReportForm">
+      <button type="submit" name="runReportNow" value="1" class="btn btn-primary" id="runReportButton" #(reportRunning)#::disabled="disabled"#(/reportRunning)#>run report now</button>
+    </form>
+
+    <div class="logreport-progress" id="runReportProgress" #(reportRunning)#::style="display:flex"#(/reportRunning)#>
+      <div class="spinner"></div>
+      <div>Generating report from the current-hour log lines &mdash; the LLM call can take a while &hellip;
+        <span id="runReportElapsed">#(reportRunning)#0::#[elapsedSeconds]##(/reportRunning)#</span> seconds elapsed</div>
+    </div>
+
+    <script type="text/javascript">
+      // Live view of the manual report generation: the job runs asynchronously on
+      // the server, the model output is streamed into a buffer there, and this
+      // script polls api/logreportstatus.json in the background. No hard page
+      // reloads - the partially generated report is rendered in place so the user
+      // can read and scroll in it while it is still being completed.
+      (function () {
+        var button = document.getElementById("runReportButton");
+        var progress = document.getElementById("runReportProgress");
+        var elapsedElement = document.getElementById("runReportElapsed");
+        var liveCard = document.getElementById("liveReportCard");
+        var liveBody = document.getElementById("liveReportMarkdown");
+        var liveTitle = document.getElementById("liveReportTitle");
+        var liveMeta = document.getElementById("liveReportMeta");
+        var selectedCard = document.getElementById("selectedReportCard");
+        var pollTimer = null;
+
+        function setRunningUI(running) {
+          button.disabled = running;
+          progress.style.display = running ? "flex" : "none";
+        }
+
+        function renderPartial(partial) {
+          // the shared markdown module is loaded at the end of the page and might
+          // not be ready when the very first poll response arrives
+          if (!liveCard || !partial || typeof YaCyMarkdown === "undefined") return;
+          liveCard.style.display = "block";
+          if (selectedCard) selectedCard.style.display = "none";
+          // re-rendering the grown markdown into the same element preserves the
+          // scroll position, so the user can read while the report is completed
+          liveBody.innerHTML = YaCyMarkdown.render(partial, { breaks: false });
+          liveBody.classList.add("markdown-body");
+        }
+
+        function showResultBox(cssClass, text) {
+          var box = document.createElement("div");
+          box.className = cssClass;
+          box.textContent = text;
+          progress.parentNode.insertBefore(box, progress);
+        }
+
+        function finish(status) {
+          clearInterval(pollTimer);
+          setRunningUI(false);
+          if (status.outcome === 1) {
+            if (liveTitle) liveTitle.textContent = "YaCy hourly log report (just generated)";
+            if (liveMeta) liveMeta.textContent = status.message + " - " + status.durationSeconds + " seconds";
+            showResultBox("logreport-message", "Current-hour report written: " + status.message + " (" + status.durationSeconds + " seconds)");
+            // add the new report to the navigation column; a delete button is
+            // omitted here on purpose, a page reload will offer it
+            var nav = document.querySelector(".logreport-nav");
+            if (nav) {
+              var li = document.createElement("li");
+              var a = document.createElement("a");
+              a.href = "LogReports_p.html?report=" + encodeURIComponent(status.message);
+              a.title = status.message;
+              var date = document.createElement("span");
+              date.className = "nav-date";
+              date.textContent = status.message.replace(/^report-(\d{4}-\d{2}-\d{2})-(\d{2})\.md$/, "$1 $2:00");
+              var type = document.createElement("span");
+              type.className = "nav-type";
+              type.textContent = "hourly report";
+              a.appendChild(date);
+              a.appendChild(type);
+              li.appendChild(a);
+              nav.insertBefore(li, nav.firstChild);
+            }
+          } else if (status.outcome === 2) {
+            showResultBox("logreport-warning", "No log lines were found for the current hour.");
+          } else if (status.outcome === 3) {
+            showResultBox("logreport-warning", "No production model is configured for the log-report role.");
+          } else if (status.outcome === 4) {
+            showResultBox("logreport-warning", "Report generation failed after " + status.durationSeconds + " seconds: " + status.message);
+          }
+        }
+
+        function poll() {
+          fetch("api/logreportstatus.json", { cache: "no-store" })
+            .then(function (response) { return response.json(); })
+            .then(function (status) {
+              if (status.running) {
+                elapsedElement.textContent = status.elapsedSeconds;
+                renderPartial(status.partial);
+              } else {
+                renderPartial(status.partial); // final render of the complete text
+                finish(status);
+              }
+            })
+            .catch(function (err) { console.warn("report status poll failed", err); });
+        }
+
+        function startPolling() {
+          setRunningUI(true);
+          if (pollTimer) clearInterval(pollTimer);
+          pollTimer = setInterval(poll, 2000);
+          poll();
+        }
+
+        // start the job via fetch instead of a regular form submit, so the page
+        // is not reloaded and the live view keeps its state
+        document.getElementById("runReportForm").addEventListener("submit", function (event) {
+          event.preventDefault();
+          setRunningUI(true);
+          fetch("LogReports_p.html", { method: "POST", body: new URLSearchParams({ runReportNow: "1" }) })
+            .then(function () { startPolling(); })
+            .catch(function (err) {
+              console.warn("could not start report generation", err);
+              setRunningUI(false);
+            });
+        });
+
+        // a job may already be running (started earlier or by another admin)
+        var reportRunning = #(reportRunning)#false::true#(/reportRunning)#;
+        if (reportRunning) startPolling();
+      })();
+    </script>
+
+    #(runReportResult)#
+    ::
+    <div class="logreport-message">Current-hour report written: #[runReportFile]# (#[runReportDurationSeconds]# seconds)</div>
+    ::
+    <div class="logreport-warning">No log lines were found for the current hour.</div>
+    ::
+    <div class="logreport-warning">
+      No production model is configured for the log-report role. Assign one in the
+      <a href="LLMSelection_p.html#availableModels">Production Models Matrix</a>.
+    </div>
+    ::
+    <div class="logreport-warning">Report generation failed after #[runReportDurationSeconds]# seconds: #[runReportFile]#</div>
+    #(/runReportResult)#
+
+    #(modelConfigured)#
+    <div class="logreport-warning">
+      No production model is configured for the log-report role. Log report generation stays inactive until a model is assigned in the
+      <a href="LLMSelection_p.html#availableModels">Production Models Matrix</a>.
+    </div>
+    ::
+    #(/modelConfigured)#
+
+    <p class="logreport-feeds">
+      Reports found: #[reportCount]#<br />
+      Directory: #[reportdir]#<br />
+      Feeds:
+      <a href="#[jsonFeed]#">JSON</a>
+      |
+      <a href="#[rssFeed]#">RSS</a>
+    </p>
+
+    #(reportdirMissing)#
+    ::
+    <div class="logreport-empty">The report directory does not exist yet. Reports will appear here after the scheduler has generated the first completed hourly report.</div>
+    #(/reportdirMissing)#
+
+    #(hasReports)#
+    ::
+    <div class="logreport-layout">
+      <ul class="logreport-nav">
+        #{reports}#
+        <li #(selected)#::class="selected"#(/selected)#>
+          <a href="LogReports_p.html?report=#[filename]#" title="#[filename]#">
+            <span class="nav-date">#[date]#</span>
+            <span class="nav-type">#[type]# report</span>
+          </a>
+          <a class="nav-delete" href="LogReports_p.html?deleteReport=#[filename]#" title="delete this report">&times;</a>
+        </li>
+        #{/reports}#
+      </ul>
+
+      <div class="logreport-main">
+        <!-- live view of the report which is currently being generated: the polling
+             script streams the partial model output into this card. Intentionally
+             without a delete button - the report file does not exist yet -->
+        <div class="logreport-card" id="liveReportCard" style="display:none">
+          <div class="logreport-header">
+            <div class="logreport-title" id="liveReportTitle">Report generation in progress &hellip;</div>
+            <div class="logreport-meta" id="liveReportMeta">the report below is completed live while the model is writing</div>
+          </div>
+          <div class="logreport-body" id="liveReportMarkdown"></div>
+        </div>
+
+        #(selectedReport)#
+        ::
+        <div class="logreport-card" id="selectedReportCard">
+          <div class="logreport-header">
+            <div class="logreport-title">#[title]#</div>
+            <div class="logreport-meta">
+              #[type]# report - #[filename]# - #[published]# - #[chars]# characters
+            </div>
+          </div>
+          <!-- the template writes the escaped markdown source into this element; the
+               script below replaces it with rendered markdown (same pipeline as the
+               chat messages in yacychat.html) and adds the markdown-body class. Without
+               JavaScript the raw markdown stays readable through the pre-wrap rule -->
+          <div class="logreport-body" id="reportMarkdown">#[content]#</div>
+        </div>
+        #(/selectedReport)#
+      </div>
+    </div>
+    #(/hasReports)#
+
+    #(noReports)#
+    ::
+    <div class="logreport-empty">No generated log reports were found.</div>
+    #(/noReports)#
+
+    <script src="js/highlight.min.js"></script>
+    <script src="js/marked.umd.js"></script>
+    <script src="js/yacy-markdown.js"></script>
+    <script type="text/javascript">
+      // Render the selected report with the shared markdown pipeline (js/yacy-markdown.js),
+      // the same one used for the chat messages in yacychat.html. textContent yields the
+      // raw markdown source which the server-side template wrote in HTML-escaped form.
+      (function () {
+        var container = document.getElementById("reportMarkdown");
+        if (!container || typeof marked === "undefined") return;
+        // breaks:false because report files have hard-wrapped source lines which
+        // must flow as continuous text, not render as one <br> per source line
+        container.innerHTML = YaCyMarkdown.render(container.textContent, { breaks: false });
+        // the class switches the container from the pre-wrap raw-text fallback
+        // to the rendered-markdown styles from env/markdown.css
+        container.classList.add("markdown-body");
+        YaCyMarkdown.highlightAll(container);
+      })();
+    </script>
+
+    #%env/templates/footer.template%#
+  </body>
+</html>

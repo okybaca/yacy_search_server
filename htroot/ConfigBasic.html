@@ -4,6 +4,38 @@
     <meta charset="UTF-8" />
     <title>YaCy '#[clientname]#': Access Configuration</title>
     #%env/templates/metas.template%#
+    <style type="text/css">
+      .usecase-options {
+        border-collapse: separate;
+        border-spacing: 8px 0;
+        margin: 8px -8px 0;
+      }
+      .usecase-option {
+        background-color: #384757;
+        color: #ffffff;
+        vertical-align: top;
+        width: 374px;
+      }
+      .usecase-option label {
+        color: inherit;
+        cursor: pointer;
+      }
+      .usecase-option-heading {
+        font-size: 18px;
+        font-weight: bold;
+        margin: 0;
+        padding: 12px;
+      }
+      .usecase-option-image,
+      .usecase-option-image img {
+        display: block;
+        margin: 0;
+      }
+      .usecase-option-description {
+        display: block;
+        padding: 12px;
+      }
+    </style>
     <script type="text/javascript">
       <!--
       function element_clicked(element){
@@ -40,18 +72,22 @@
         <li>
           <img src="env/grafics/ok.png" height="16" width="16" alt="ok" />&nbsp;Select a language for the interface:<br />
           <fieldset>
-            <input type="radio" name="language" value="browser" id="lang_browser" onchange="this.form.submit()" #(lang_browser)#::checked="checked"#(/lang_browser)# /><label for="lang_browser" title="Use the browser preferred language if available">Browser</label>&nbsp;
             <input type="radio" name="language" value="default" id="lang_en" onchange="this.form.submit()" #(lang_en)#::checked="checked"#(/lang_en)# /><label for="lang_en" #(active_en)#::title="Click to generate translated pages"::class="label-success" title="Active : translated pages are available"#(/active_en)#>English</label>&nbsp;    
             <input type="radio" name="language" value="de" id="lang_de" onchange="this.form.submit()" #(lang_de)#::checked="checked"#(/lang_de)# /><label for="lang_de" #(active_de)#::title="Click to generate translated pages"::class="label-success" title="Active : translated pages are available"#(/active_de)#>Deutsch</label>&nbsp;
             <input type="radio" name="language" value="fr" id="lang_fr" onchange="this.form.submit()" #(lang_fr)#::checked="checked"#(/lang_fr)# /><label for="lang_fr" #(active_fr)#::title="Click to generate translated pages"::class="label-success" title="Active : translated pages are available"#(/active_fr)#>Fran&ccedil;ais</label>&nbsp;
-            <input type="radio" name="language" value="zh" id="lang_zh" onchange="this.form.submit()" #(lang_zh)#::checked="checked"#(/lang_zh)# /><label for="lang_zh" #(active_zh)#::title="Click to generate translated pages"::class="label-success" title="Active : translated pages are available"#(/active_zh)#>&#20013;&#25991</label>
-            <input type="radio" name="language" value="ru" id="lang_ru" onchange="this.form.submit()" #(lang_ru)#::checked="checked"#(/lang_ru)# /><label for="lang_ru" #(active_ru)#::title="Click to generate translated pages"::class="label-success" title="Active : translated pages are available"#(/active_ru)#>&#1056;&#1091;&#1089;&#1089;&#1082;&#1080;&#1081;</label>
+            <input type="radio" name="language" value="pl" id="lang_pl" onchange="this.form.submit()" #(lang_pl)#::checked="checked"#(/lang_pl)# /><label for="lang_pl" #(active_pl)#::title="Click to generate translated pages"::class="label-success" title="Active : translated pages are available"#(/active_pl)#>Polski</label>&nbsp;
+            <input type="radio" name="language" value="el" id="lang_el" onchange="this.form.submit()" #(lang_el)#::checked="checked"#(/lang_el)# /><label for="lang_el" #(active_el)#::title="Click to generate translated pages"::class="label-success" title="Active : translated pages are available"#(/active_el)#>&#917;&#955;&#955;&#951;&#957;&#953;&#954;&#940;</label>
+            <input type="radio" name="language" value="it" id="lang_it" onchange="this.form.submit()" #(lang_it)#::checked="checked"#(/lang_it)# /><label for="lang_it" #(active_it)#::title="Click to generate translated pages"::class="label-success" title="Active : translated pages are available"#(/active_it)#>Italiano</label>
+            <input type="radio" name="language" value="es" id="lang_es" onchange="this.form.submit()" #(lang_es)#::checked="checked"#(/lang_es)# /><label for="lang_es" #(active_es)#::title="Click to generate translated pages"::class="label-success" title="Active : translated pages are available"#(/active_es)#>Español</label>
+            <input type="radio" name="language" value="tr" id="lang_tr" onchange="this.form.submit()" #(lang_tr)#::checked="checked"#(/lang_tr)# /><label for="lang_tr" #(active_tr)#::title="Click to generate translated pages"::class="label-success" title="Active : translated pages are available"#(/active_tr)#>T&uuml;rk&ccedil;e</label>
+            <input type="radio" name="language" value="sk" id="lang_sk" onchange="this.form.submit()" #(lang_sk)#::checked="checked"#(/lang_sk)# /><label for="lang_sk" #(active_sk)#::title="Click to generate translated pages"::class="label-success" title="Active : translated pages are available"#(/active_sk)#>Sloven&#269;ina</label>
             <input type="radio" name="language" value="uk" id="lang_uk" onchange="this.form.submit()" #(lang_uk)#::checked="checked"#(/lang_uk)# /><label for="lang_uk" #(active_uk)#::title="Click to generate translated pages"::class="label-success" title="Active : translated pages are available"#(/active_uk)#>&#1059;&#1082;&#1088;&#1072;&#1111;&#1085;&#1089;&#1100;&#1082;&#1072;</label>
+            <input type="radio" name="language" value="ru" id="lang_ru" onchange="this.form.submit()" #(lang_ru)#::checked="checked"#(/lang_ru)# /><label for="lang_ru" #(active_ru)#::title="Click to generate translated pages"::class="label-success" title="Active : translated pages are available"#(/active_ru)#>&#1056;&#1091;&#1089;&#1089;&#1082;&#1080;&#1081;</label>
+            <input type="radio" name="language" value="zh" id="lang_zh" onchange="this.form.submit()" #(lang_zh)#::checked="checked"#(/lang_zh)# /><label for="lang_zh" #(active_zh)#::title="Click to generate translated pages"::class="label-success" title="Active : translated pages are available"#(/active_zh)#>&#20013;&#25991;</label>
             <input type="radio" name="language" value="hi" id="lang_hi" onchange="this.form.submit()" #(lang_hi)#::checked="checked"#(/lang_hi)# /><label for="lang_hi" #(active_hi)#::title="Click to generate translated pages"::class="label-success" title="Active : translated pages are available"#(/active_hi)#>&#2361;&#2367;&#2344;&#2381;&#2342;&#2368;</label>
             <input type="radio" name="language" value="ja" id="lang_ja" onchange="this.form.submit()" #(lang_ja)#::checked="checked"#(/lang_ja)# /><label for="lang_ja" #(active_ja)#::title="Click to generate translated pages"::class="label-success" title="Active : translated pages are available"#(/active_ja)#>&#26085;&#26412;&#35486;</label>
-            <input type="radio" name="language" value="el" id="lang_el" onchange="this.form.submit()" #(lang_el)#::checked="checked"#(/lang_el)# /><label for="lang_el" #(active_el)#::title="Click to generate translated pages"::class="label-success" title="Active : translated pages are available"#(/active_el)#>Greek</label>
-            <input type="radio" name="language" value="it" id="lang_it" onchange="this.form.submit()" #(lang_it)#::checked="checked"#(/lang_it)# /><label for="lang_it" #(active_el)#::title="Click to generate translated pages"::class="label-success" title="Active : translated pages are available"#(/active_el)#>Italiano</label>            
-              <input type="radio" name="language" value="es" id="lang_es" onchange="this.form.submit()" #(lang_es)#::checked="checked"#(/lang_es)# /><label for="lang_es" #(active_es)#::title="Click to generate translated pages"::class="label-success" title="Active : translated pages are available"#(/active_es)#>Español</label>
+            <input type="radio" name="language" value="ko" id="lang_ko" onchange="this.form.submit()" #(lang_ko)#::checked="checked"#(/lang_ko)# /><label for="lang_ko" #(active_ko)#::title="Click to generate translated pages"::class="label-success" title="Active : translated pages are available"#(/active_ko)#>&#54620;&#44397;&#50612;</label>
+           
           </fieldset>
         </li>
         <!-- take care that no other items are changed, but also change the former if no js is enabled -->
@@ -70,23 +106,24 @@
           ::<div class="alert alert-warning" role="alert"><p>One or more remote Solr instances are attached.</p> 
           <p>Please be sure you want to expose the indexed documents in this new mode. You may want to disconnect or change the remote Solr instance(s) attached (see the <a href="IndexFederated_p.html">Index Sources &amp; Targets</a> page).</p></div>
           #(/switchWarning)#
-          <table border="0">
-          <tr>
-            <td style="width: 256px;"><input type="radio" name="usecase" value="freeworld" id="usecaseFreeworld" #(freeworldChecked)#::checked="checked"#(/freeworldChecked)# /><label for="usecaseFreeworld">Community-based web search</label></td>
-              <td style="width: 256px;"><input type="radio" name="usecase" value="portal" id="usecasePortal" #(portalChecked)#::checked="checked"#(/portalChecked)# /><label for="usecasePortal">Search portal for your own web pages</label></td>
-              <td><input type="radio" name="usecase" value="intranet" id="usecaseIntranet" #(intranetChecked)#::checked="checked"#(/intranetChecked)# /><label for="usecaseIntranet">Intranet Indexing</label></td>
-          </tr>
-          <tr>
-            <td><label for="usecaseFreeworld"><img src="env/grafics/usecase_freeworld.png" alt="Usecase Freeworld" /></label></td>
-            <td><label for="usecasePortal"><img src="env/grafics/usecase_webportal.png" alt="Usecase Portal" /></label></td>
-            <td><label for="usecaseIntranet"><img src="env/grafics/usecase_intranet.png" alt="Usecase Intranet" /></label></td>
-          </tr>
-          <tr>
-            <td valign="top"><label for="usecaseFreeworld">Join and support the global network 'freeworld', search the web with an uncensored user-owned search network</label></td>
-            <td valign="top"><label for="usecasePortal">Your YaCy installation behaves independently from other peers and you define your own web index by starting your own web crawl. This can be used to search your own web pages or to define a topic-oriented search portal.</label></td>
-            <td valign="top"><label for="usecaseIntranet">Create a search portal for your intranet or web pages or your (shared) file system. URLs may be used with http/https/ftp and a local domain name or IP, or with an URL of the form file:///&lt;path&gt; or smb://&lt;server&gt;/&lt;path&gt;<br/>            
-            </td>
-          </tr>
+          <table class="usecase-options" border="0">
+            <tr>
+              <td class="usecase-option">
+                <div class="usecase-option-heading"><input type="radio" name="usecase" value="freeworld" id="usecaseFreeworld" #(freeworldChecked)#::checked="checked"#(/freeworldChecked)# /> <label for="usecaseFreeworld">Community-based web search</label></div>
+                <label class="usecase-option-image" for="usecaseFreeworld"><img src="env/grafics/usecase_freeworld.png" width="374" height="350" alt="Usecase Freeworld" /></label>
+                <label class="usecase-option-description" for="usecaseFreeworld">Join and support the global network 'freeworld', search the web with an uncensored user-owned search network</label>
+              </td>
+              <td class="usecase-option">
+                <div class="usecase-option-heading"><input type="radio" name="usecase" value="portal" id="usecasePortal" #(portalChecked)#::checked="checked"#(/portalChecked)# /> <label for="usecasePortal">Search portal for your own web pages</label></div>
+                <label class="usecase-option-image" for="usecasePortal"><img src="env/grafics/usecase_webportal.png" width="374" height="350" alt="Usecase Portal" /></label>
+                <label class="usecase-option-description" for="usecasePortal">Your YaCy installation behaves independently from other peers and you define your own web index by starting your own web crawl. This can be used to search your own web pages or to define a topic-oriented search portal.</label>
+              </td>
+              <td class="usecase-option">
+                <div class="usecase-option-heading"><input type="radio" name="usecase" value="intranet" id="usecaseIntranet" #(intranetChecked)#::checked="checked"#(/intranetChecked)# /> <label for="usecaseIntranet">Intranet Indexing</label></div>
+                <label class="usecase-option-image" for="usecaseIntranet"><img src="env/grafics/usecase_intranet.png" width="374" height="350" alt="Usecase Intranet" /></label>
+                <label class="usecase-option-description" for="usecaseIntranet">Create a search portal for your intranet or web pages or your (shared) file system. URLs may be used with http/https/ftp and a local domain name or IP, or with an URL of the form file:///&lt;path&gt; or smb://&lt;server&gt;/&lt;path&gt;</label>
+              </td>
+            </tr>
           </table>
           </fieldset>
         </li>
@@ -143,7 +180,7 @@
     <!-- [2]: peername not proper -->
     <p>Your Peer name is a default name; please set an individual peer name.</p>::
     <!-- [3]: port not proper -->
-    <p>You did not open a port in your firewall or your router does not forward the server port to your peer. This is needed if you want to fully participate in the YaCy network. You can also use your peer without opening it, but this is not recomended.</p>::
+    <p>You did not open a port in your firewall or your router does not forward the server port to your peer. This is needed if you want to fully participate in the YaCy network. You can also use your peer without opening it, but this is not recommended.</p>::
     <!-- [4]: reconnect to different port -->
     <p>The peer port was changed successfully. Your browser will be redirected to the new <a href="http://#[host]#:#[port]#/ConfigBasic.html">location</a> in 5 seconds.</p>
     #(/nextStep)#
