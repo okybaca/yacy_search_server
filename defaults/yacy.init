@@ -1232,7 +1232,7 @@ thumbnailProgram =
 httpd.robots.txt = locked,dirs,bookmarks,network,news,status,profile
 
 # maximum number of robots.txt loading threads
-robots.txt.MaxActiveThreads = 40
+robots.txt.MaxActiveThreads = 200
 
 # settings for automatic deletion of old entries in passive and potential seed-db
 # time means max time (in days) a peer may not have been seen before it is deleted
