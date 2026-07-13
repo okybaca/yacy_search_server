@@ -45,12 +45,10 @@ import net.yacy.cora.federate.solr.responsewriter.EnhancedXMLResponseWriter;
 import net.yacy.cora.federate.solr.responsewriter.GrepHTMLResponseWriter;
 import net.yacy.cora.federate.solr.responsewriter.HTMLResponseWriter;
 import net.yacy.cora.federate.solr.responsewriter.OpensearchResponseWriter;
-import net.yacy.cora.federate.solr.responsewriter.SnapshotImagesReponseWriter;
 import net.yacy.cora.federate.solr.responsewriter.SolrjResponseWriter;
 import net.yacy.cora.federate.solr.responsewriter.YJsonResponseWriter;
 import net.yacy.cora.protocol.RequestHeader;
 import net.yacy.cora.util.ConcurrentLog;
-import net.yacy.data.UserDB;
 import net.yacy.search.Switchboard;
 import net.yacy.search.SwitchboardConstants;
 import net.yacy.search.query.AccessTracker;
@@ -109,7 +107,6 @@ public class SolrSelectServlet extends HttpServlet {
         RESPONSE_WRITER.put("xslt", xsltWriter); // try i.e. http://localhost:8090/solr/select?q=*:*&start=0&rows=10&wt=xslt&tr=json.xsl
         RESPONSE_WRITER.put("exml", new EnhancedXMLResponseWriter());
         RESPONSE_WRITER.put("html", new HTMLResponseWriter());
-        RESPONSE_WRITER.put("snapshots", new SnapshotImagesReponseWriter());
         RESPONSE_WRITER.put("grephtml", new GrepHTMLResponseWriter());
         RESPONSE_WRITER.put("rss", opensearchResponseWriter); //try http://localhost:8090/solr/select?wt=rss&q=olympia&hl=true&hl.fl=text_t,h1,h2
         RESPONSE_WRITER.put("opensearch", opensearchResponseWriter); //try http://localhost:8090/solr/select?wt=rss&q=olympia&hl=true&hl.fl=text_t,h1,h2
@@ -132,7 +129,7 @@ public class SolrSelectServlet extends HttpServlet {
 
             Switchboard sb = Switchboard.getSwitchboard();
             // TODO: isUserInRole needs a login to jetty container (not done automatically on admin from localhost)
-            boolean authenticated = hrequest.isUserInRole(UserDB.AccessRight.ADMIN_RIGHT.toString());
+            boolean authenticated = hrequest.isUserInRole(SwitchboardConstants.ADMIN_ACCOUNT_ROLE);
 
             // count remote searches if this was part of a p2p search
             if (mmsp.getMap().containsKey("partitions")) {

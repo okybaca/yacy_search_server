@@ -16,7 +16,10 @@ RUN apk add --no-cache curl git apache-ant
 # set current working dir & copy sources
 WORKDIR /opt
 COPY . /opt/yacy_search_server/
-RUN ant compile -f /opt/yacy_search_server/build.xml
+# .git dir deleted here because .git is needed during the build to deterime the version,
+# but isn't required at runtime
+RUN ant compile -f /opt/yacy_search_server/build.xml \
+    && rm -fr /opt/yacy_search_server/.git
 
 # Set initial admin password: "yacy" (encoded with custom yacy md5 function net.yacy.cora.order.Digest.encodeMD5Hex())
 RUN sed -i "/adminAccountBase64MD5=/c\adminAccountBase64MD5=MD5:8cffbc0d66567a0987a4aba1ec46d63c" /opt/yacy_search_server/defaults/yacy.init && \
@@ -24,38 +27,18 @@ RUN sed -i "/adminAccountBase64MD5=/c\adminAccountBase64MD5=MD5:8cffbc0d66567a09
 	sed -i "/server.https=false/c\server.https=true" /opt/yacy_search_server/defaults/yacy.init
 
 ## build final image
-FROM surnet/alpine-wkhtmltopdf:3.21.2-0.12.6-small AS wkhtmltopdf
 FROM eclipse-temurin:21-jre-alpine-3.21 AS app
 
 RUN apk add --no-cache \
-	imagemagick \
-	xvfb \
-	ghostscript \
-	# Install dependencies for wkhtmltopdf
-	libstdc++ \
-	libx11 \
-	libxrender \
-	libxext \
 	libssl3 \
 	ca-certificates \
 	fontconfig \
 	freetype \
 	ttf-dejavu \
-	ttf-droid \
-	ttf-freefont \
-	ttf-liberation \
-	# more fonts
-	&& apk add --no-cache --virtual .build-deps \
-	msttcorefonts-installer \
-	# Install microsoft fonts
-	&& update-ms-fonts \
-	&& fc-cache -f \
-	# Clean up when done
-	&& rm -rf /tmp/* \
-	&& apk del .build-deps
-
-# Copy wkhtmltopdf files from docker-wkhtmltopdf image
-COPY --from=wkhtmltopdf /bin/wkhtmltopdf /bin/wkhtmltopdf
+	# fontconfig, freetype and a single font are required for server-side
+	# AWT/Graphics2D text rendering (e.g. NetworkGraph.drawPeerLoadPicture);
+	# the Alpine JRE ships none of these by default.
+	&& fc-cache -f
 
 # copy YaCy to app image
 RUN addgroup yacy && adduser -S -G yacy -H -D yacy

@@ -43,6 +43,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 
@@ -62,10 +63,12 @@ import net.yacy.cora.protocol.HeaderFramework;
 import net.yacy.cora.protocol.TimeoutRequest;
 import net.yacy.cora.protocol.http.HTTPClient;
 import net.yacy.cora.util.ConcurrentLog;
+import net.yacy.ai.LogReportService;
 import net.yacy.data.TransactionManager;
 import net.yacy.data.Translator;
 import net.yacy.gui.YaCyApp;
 import net.yacy.gui.framework.Browser;
+import net.yacy.http.Jetty12HttpServer;
 import net.yacy.http.YaCyHttpServer;
 import net.yacy.kelondro.util.FileUtils;
 import net.yacy.kelondro.util.Formatter;
@@ -293,10 +296,11 @@ public final class yacy {
             // start main threads
             final int port = sb.getLocalPort();
             final String host = sb.getLocalHost();
+            ScheduledExecutorService logReportScheduler = null;
             try {
                 // start http server
                 YaCyHttpServer httpServer;
-                httpServer = new YaCyHttpServer(port, host);
+                httpServer = new Jetty12HttpServer(port, host);
                 httpServer.startupServer();
                 sb.setHttpServer(httpServer);
                 // TODO: this has no effect on Jetty (but needed to reflect configured value and limit is still used)
@@ -359,6 +363,7 @@ public final class yacy {
                             try { //is this another version?!
                                 final File sourceDir = new File(sb.getConfig(SwitchboardConstants.HTROOT_PATH, SwitchboardConstants.HTROOT_PATH_DEFAULT));
                                 final File destDir = new File(sb.getDataPath("locale.translated_html", "DATA/LOCALE/htroot"), tmplang);
+                                FileUtils.deletedelete(destDir);
                                 if (new TranslatorXliff().translateFilesRecursive(sourceDir, destDir, new File(locale_source, tmplang + ".lng"), "html,template,inc", "locale")) { //translate it
                                     //write the new Versionnumber
                                     final BufferedWriter bw = new BufferedWriter(new PrintWriter(new FileWriter(new File(destDir, "version"))));
@@ -373,6 +378,8 @@ public final class yacy {
                 // initialize number formatter with this locale
                 if (!lang.equals("browser")) // "default" is handled by .setLocale()
                     Formatter.setLocale(lang);
+
+                logReportScheduler = LogReportService.startScheduler(sb);
 
                 // registering shutdown hook
                 ConcurrentLog.config("STARTUP", "Registering Shutdown Hook");
@@ -396,11 +403,13 @@ public final class yacy {
                 }
                 // shut down
                 ConcurrentLog.config("SHUTDOWN", "caught termination signal");
+                LogReportService.stopScheduler(logReportScheduler);
                 httpServer.stop();
 
                 ConcurrentLog.config("SHUTDOWN", "server has terminated");
                 sb.close();
             } catch (final Exception e) {
+                LogReportService.stopScheduler(logReportScheduler);
                 ConcurrentLog.severe("STARTUP", "Unexpected Error: " + e.getClass().getName(),e);
                 //System.exit(1);
             }

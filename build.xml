@@ -38,6 +38,12 @@
   <property name="lib" location="lib"/>
   <property name="libt" location="libt"/>
   <property name="build" location="build/classes/java/main"/> <!-- reuse Gradle build path -->
+  <property name="ivy.compile.stage" location="build/ivy-retrieve/compile"/>
+  <property name="jetty12.test.classes" location="build/jetty12-server-tests"/>
+  <property name="solr9.bridge.build" location="build/solr9-bridge"/>
+  <property name="solr9.bridge.input" location="${solr9.bridge.build}/input"/>
+  <property name="solr9.bridge.tool" location="${solr9.bridge.build}/tool"/>
+  <property name="solr9.bridge.tool.libs" location="${solr9.bridge.build}/tool-libs"/>
   <property name="javadoc" location="javadoc"/>
   <property name="htroot" location="htroot"/>
   <property name="test" location="test/java"/>
@@ -89,8 +95,26 @@
          We can move there in a following step.
          ${lib} just happens to be equal to ${ivy.lib.dir}.
     -->
-    <ivy:retrieve conf="compile" pathid="compile.path" pattern="${ivy.lib.dir}/[artifact]-[revision].[ext]" />
-    <ivy:retrieve conf="test" pathid="test.path" pattern="${libt}/[artifact]-[revision].[ext]" />
+    <!--
+      Ivy retrieve does not remove stale revisions or replaced coordinates.
+      Resolve the complete public classpath into staging before touching lib/;
+      a failed resolve therefore leaves the last usable runtime intact. Only
+      after staging succeeds are stale public Jetty/Servlet jars removed and
+      the resolved classpath published. Private Solr jars use the distinct
+      solr9-bridge-* prefix and are rebuilt by build-solr9-bridge.
+    -->
+    <delete dir="${ivy.compile.stage}" failonerror="false" />
+    <mkdir dir="${ivy.compile.stage}" />
+    <ivy:retrieve conf="compile" type="jar,bundle" pathid="compile.path" pattern="${ivy.compile.stage}/[artifact]-[revision].[ext]" />
+    <delete failonerror="false">
+      <fileset dir="${lib}" includes="javax.servlet-api-*.jar,jetty-*.jar,lucene-*.jar" />
+    </delete>
+    <copy todir="${ivy.lib.dir}" overwrite="true">
+      <fileset dir="${ivy.compile.stage}" includes="**/*" />
+    </copy>
+    <ivy:retrieve conf="test" type="jar,bundle" pathid="test.path" pattern="${libt}/[artifact]-[revision].[ext]" />
+    <ivy:retrieve conf="solr9-bridge" type="jar,bundle" pathid="solr9.bridge.input.path" pattern="${solr9.bridge.input}/[artifact]-[revision].[ext]" />
+    <ivy:retrieve conf="solr9-bridge-tool" type="jar,bundle" pathid="solr9.bridge.tool.path" pattern="${solr9.bridge.tool.libs}/[artifact]-[revision].[ext]" />
     <property name="target-resolve-already-run" value="true" />
   </target>
 
@@ -170,17 +194,43 @@
     <path id="project.class.path">
         <pathelement location="${build}" />
         <pathelement location="${lib}/J7Zip-modified-1.0.2.jar" />
-        <pathelement location="${lib}/org.restlet.jar" />
         <path refid="compile.path" />
+        <fileset dir="${lib}" includes="solr9-bridge-*.jar" />
     </path>
 
-  <target name="compile-core" depends="init,resolve" description="compile YaCy core">
+  <target name="build-solr9-bridge" depends="init,resolve" description="build the private Solr 9.10 Jetty 10 island">
+    <delete dir="${solr9.bridge.tool}" failonerror="false"/>
+    <delete failonerror="false">
+      <fileset dir="${lib}" includes="solr9-bridge-*.jar,solr-*.jar,http2-*.jar,jetty-*-10.0.26.jar,slf4j-*-1.7.36.jar" />
+    </delete>
+    <mkdir dir="${solr9.bridge.tool}"/>
+    <javac srcdir="test/jetty" destdir="${solr9.bridge.tool}"
+           includes="RelocateJettyPackages.java" includeantruntime="false"
+           release="${javacRelease}" encoding="UTF-8">
+      <classpath refid="solr9.bridge.tool.path"/>
+    </javac>
+    <path id="solr9.bridge.runtime.path">
+      <pathelement location="${solr9.bridge.tool}"/>
+      <path refid="solr9.bridge.tool.path"/>
+    </path>
+    <apply executable="${java.home}/bin/java" parallel="false" failonerror="true" dest="${lib}">
+      <arg value="-cp"/>
+      <arg pathref="solr9.bridge.runtime.path"/>
+      <arg value="net.yacy.test.jetty.RelocateJettyPackages"/>
+      <srcfile/>
+      <targetfile/>
+      <fileset dir="${solr9.bridge.input}" includes="*.jar"/>
+      <mapper type="glob" from="*" to="solr9-bridge-*"/>
+    </apply>
+  </target>
+
+  <target name="compile-core" depends="init,resolve,build-solr9-bridge" description="compile YaCy core">
     <!-- compile the core sources -->
     <echo message="project.class.path: ${toString:project.class.path}" />
     <javac srcdir="${src}/" destdir="${build}"
            debug="true" debuglevel="lines,vars,source" includeantruntime="false"
-           source="${javacSource}" target="${javacTarget}" encoding="UTF-8"
-	   nowarn="on">
+	       release="${javacRelease}" encoding="UTF-8"
+		   nowarn="on">
       <classpath refid="project.class.path" />
       <compilerarg value="-Xlint:unchecked"/>
     </javac>
@@ -208,7 +258,37 @@
 
   <target name="compile" depends="compile-core" description="compile YaCy core and YaCy servlets" />
 
-  <target name="all" depends="compile">
+  <target name="jetty12-server-test" depends="compile" description="run focused Jetty 12 server tests">
+    <delete dir="${jetty12.test.classes}" failonerror="false" />
+    <mkdir dir="${jetty12.test.classes}" />
+    <javac srcdir="${test}" destdir="${jetty12.test.classes}"
+           debug="true" debuglevel="lines,vars,source" includeantruntime="false"
+           release="${javacRelease}" encoding="UTF-8">
+      <include name="net/yacy/http/Jetty12*Test.java" />
+      <include name="net/yacy/http/servlets/ServletResourceTest.java" />
+      <include name="net/yacy/http/servlets/Jetty12QoSFilterTest.java" />
+      <classpath>
+        <pathelement location="${build}" />
+        <path refid="compile.path" />
+        <fileset dir="${libt}" includes="**/*.jar" />
+      </classpath>
+      <compilerarg value="-Xlint:deprecation" />
+    </javac>
+    <java classname="org.junit.runner.JUnitCore" fork="true" failonerror="true">
+      <arg value="net.yacy.http.Jetty12HttpServerTest" />
+      <arg value="net.yacy.http.Jetty12ProxyChainTest" />
+      <arg value="net.yacy.http.servlets.ServletResourceTest" />
+      <arg value="net.yacy.http.servlets.Jetty12QoSFilterTest" />
+      <classpath>
+        <pathelement location="${jetty12.test.classes}" />
+        <pathelement location="${build}" />
+        <path refid="compile.path" />
+        <fileset dir="${libt}" includes="**/*.jar" />
+      </classpath>
+    </java>
+  </target>
+
+  <target name="all" depends="jetty12-server-test">
   </target>
 
   <target name="copyMain4Dist" depends="compile">      
@@ -336,8 +416,8 @@
   <!-- run unittests-->
   <target name="compileTest" depends="compile" description="run unittests">
       <javac srcdir="${test}" destdir="${test}"
-           debug="true" debuglevel="lines,vars,source"
-           source="${javacSource}" target="${javacTarget}" encoding="UTF-8">
+           debug="true" debuglevel="lines,vars,source" includeantruntime="false"
+           release="${javacRelease}" encoding="UTF-8">
       <classpath>
         <pathelement location="${build}"/>
         <path refid="compile.path"/>
@@ -410,7 +490,7 @@
     <delete dir="${release_main}" failonerror="false"/>
     <delete failonerror="false">
       <fileset dir="${basedir}/ivy" includes="**/*.jar" />
-      <fileset dir="${lib}" includes="**/*.jar" excludes="org.restlet.jar" /> <!-- we cannot find the org.restlet.jar in maven -->
+      <fileset dir="${lib}" includes="**/*.jar" />
       <fileset dir="${libt}" includes="**/*.jar" />
       <fileset dir="${src}" includes="**/*.class" />
       <fileset dir="${build}" includes="**/*.class" />
@@ -418,6 +498,9 @@
       <fileset dir="." includes="TEST-*" />
     </delete>
     <delete dir="test/DATA" failonerror="false"/>
+    <delete dir="${ivy.compile.stage}" failonerror="false"/>
+    <delete dir="${jetty12.test.classes}" failonerror="false"/>
+    <delete dir="${solr9.bridge.build}" failonerror="false"/>
   </target>
 
   <!-- run YaCy (needed for NetBeans4) -->
