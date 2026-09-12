@@ -99,15 +99,15 @@
       Ivy retrieve does not remove stale revisions or replaced coordinates.
       Resolve the complete public classpath into staging before touching lib/;
       a failed resolve therefore leaves the last usable runtime intact. Only
-      after staging succeeds are stale public Jetty/Servlet jars removed and
-      the resolved classpath published. Private Solr jars use the distinct
+      after staging succeeds are stale version-sensitive jars removed and the
+      resolved classpath published. Private Solr jars use the distinct
       solr9-bridge-* prefix and are rebuilt by build-solr9-bridge.
     -->
     <delete dir="${ivy.compile.stage}" failonerror="false" />
     <mkdir dir="${ivy.compile.stage}" />
     <ivy:retrieve conf="compile" type="jar,bundle" pathid="compile.path" pattern="${ivy.compile.stage}/[artifact]-[revision].[ext]" />
     <delete failonerror="false">
-      <fileset dir="${lib}" includes="javax.servlet-api-*.jar,jetty-*.jar,lucene-*.jar" />
+      <fileset dir="${lib}" includes="javax.servlet-api-*.jar,jetty-*.jar,lucene-*.jar,jackson-*.jar,metrics-core-*.jar,metrics-jmx-*.jar" />
     </delete>
     <copy todir="${ivy.lib.dir}" overwrite="true">
       <fileset dir="${ivy.compile.stage}" includes="**/*" />
@@ -266,9 +266,12 @@
       <include name="net/yacy/http/Jetty12*Test.java" />
       <include name="net/yacy/http/servlets/ServletResourceTest.java" />
       <include name="net/yacy/http/servlets/Jetty12QoSFilterTest.java" />
+      <include name="net/yacy/http/servlets/SolrSelectServletTest.java" />
+      <include name="net/yacy/htroot/PerformanceQueues_pTest.java" />
       <classpath>
         <pathelement location="${build}" />
         <path refid="compile.path" />
+        <fileset dir="${lib}" includes="solr9-bridge-*.jar" />
         <fileset dir="${libt}" includes="**/*.jar" />
       </classpath>
       <compilerarg value="-Xlint:deprecation" />
@@ -278,10 +281,13 @@
       <arg value="net.yacy.http.Jetty12ProxyChainTest" />
       <arg value="net.yacy.http.servlets.ServletResourceTest" />
       <arg value="net.yacy.http.servlets.Jetty12QoSFilterTest" />
+      <arg value="net.yacy.http.servlets.SolrSelectServletTest" />
+      <arg value="net.yacy.htroot.PerformanceQueues_pTest" />
       <classpath>
         <pathelement location="${jetty12.test.classes}" />
         <pathelement location="${build}" />
         <path refid="compile.path" />
+        <fileset dir="${lib}" includes="solr9-bridge-*.jar" />
         <fileset dir="${libt}" includes="**/*.jar" />
       </classpath>
     </java>
