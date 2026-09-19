@@ -154,12 +154,16 @@ public class Dispatcher implements WorkflowTask<Transmission.Chunk> {
             final int maxReferenceCount,
             final int maxtime) throws IOException {
 
-    	// prefer file
-        final ArrayList<ReferenceContainer<WordReference>> containers = selectContainers(hash, limitHash, maxContainerCount, maxReferenceCount, maxtime, false);
-
-        // if ram does not provide any result, take from file
-        //if (containers.isEmpty()) containers = selectContainers(hash, limitHash, maxContainerCount, maxtime, false);
-        return containers;
+        // Prefer RAM entries first for the minimal safe variant. This keeps
+        // recently indexed references moving to peers before disk-backed rows.
+        final ArrayList<ReferenceContainer<WordReference>> ramContainers =
+                selectContainers(hash, limitHash, maxContainerCount, maxReferenceCount, maxtime, true);
+        if (!ramContainers.isEmpty()) {
+            this.log.info("DHT-OUT: preferred RAM-backed RWI entries for transfer");
+            return ramContainers;
+        }
+        this.log.info("DHT-OUT: no RAM-backed RWI entries available, falling back to disk-backed RWI transfer");
+        return selectContainers(hash, limitHash, maxContainerCount, maxReferenceCount, maxtime, false);
     }
 
     private ArrayList<ReferenceContainer<WordReference>> selectContainers(
