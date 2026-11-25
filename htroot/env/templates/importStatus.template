@@ -1,0 +1,43 @@
+    <fieldset id="import-monitor" aria-labelledby="import-monitor-title">
+      <legend id="import-monitor-title">JSON / Pack Import</legend>
+      <p id="import-loading">Loading import status...</p>
+      <p id="import-empty" hidden="hidden">No JSON import has run since startup.</p>
+      <div id="import-details" hidden="hidden">
+        <p><strong id="import-state" role="status"></strong> — <span data-value="source"></span></p>
+        <label for="import-progress">File read:</label>
+        <progress id="import-progress" max="100" value="0" style="width: 100%; height: 1.5em;"></progress>
+        <p data-value="fileProgress"></p>
+        <dl class="row">
+          <dt class="col-sm-4">Documents read:</dt><dd class="col-sm-8" data-value="read"></dd>
+          <dt class="col-sm-4">Submitted to index:</dt><dd class="col-sm-8" data-value="submitted"></dd>
+          <dt class="col-sm-4">Skipped:</dt><dd class="col-sm-8" data-value="skipped"></dd>
+          <dt class="col-sm-4">Errors:</dt><dd class="col-sm-8" data-value="errors"></dd>
+          <dt class="col-sm-4">Ignored fields:</dt><dd class="col-sm-8" data-value="ignoredFields"></dd>
+          <dt class="col-sm-4">Documents/s:</dt><dd class="col-sm-8" data-value="speed"></dd>
+          <dt class="col-sm-4">Elapsed:</dt><dd class="col-sm-8" data-value="elapsed"></dd>
+          <dt class="col-sm-4">Estimated read time left:</dt><dd class="col-sm-8" data-value="remaining"></dd>
+          <dt class="col-sm-4">Queue:</dt><dd class="col-sm-8" data-value="queue"></dd>
+          <dt class="col-sm-4">Busy workers:</dt><dd class="col-sm-8" data-value="workers"></dd>
+          <dt class="col-sm-4">Seconds since progress:</dt><dd class="col-sm-8" data-value="lastProgressSeconds"></dd>
+        </dl>
+        <p>Reading 100% does not finish the import. Index submissions can replace existing documents.</p>
+        <p id="import-stalled" class="alert alert-warning" hidden="hidden">No progress for at least 60 seconds.</p>
+        <div id="import-errors" hidden="hidden">
+          <p>Recent errors (up to 10 groups; location of last occurrence):</p>
+          <table class="table table-striped">
+            <thead><tr><th>Line</th><th>Document</th><th>Error</th><th>Occurrences</th></tr></thead>
+            <tbody id="import-error-list"></tbody>
+          </table>
+        </div>
+        <form id="import-stop" action="IndexImportJsonList_p.html" method="post" hidden="hidden">
+          <input type="hidden" name="transactionToken" value="#[importStatusToken]#" />
+          <input type="hidden" name="job" id="import-job" value="" />
+          <button type="submit" name="abort" value="1" class="btn btn-danger">Stop after queued documents</button>
+        </form>
+      </div>
+      <p id="import-stale" class="alert alert-warning" role="status" hidden="hidden">Status unavailable; displayed values may be outdated.</p>
+      <noscript>Enable JavaScript for live import monitoring.</noscript>
+      <span id="import-estimating" hidden="hidden">Not yet available</span>
+    </fieldset>
+    #%env/templates/importStates.template%#
+    <script src="js/import-monitor.js?v=3" defer="defer"></script>

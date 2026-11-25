@@ -37,6 +37,10 @@ Monitoring pages read live peer state from queues, logs, network tables, memory 
 
 Use monitoring pages as evidence, not as guesses. Capture the current state, then connect it to the user-visible symptom: slow search, missing documents, stuck crawl, memory pressure, network isolation, or unexpected access.
 
+The display filter only changes which existing log lines are shown; it does not reduce logging or its CPU and I/O cost. Successful document and webgraph writes use the `Fulltext` logger at `FINE`, with message construction skipped when this level is disabled. Solr's per-update summaries use `org.apache.solr.update.processor.LogUpdateProcessorFactory`, configured at `WARNING` by default so warnings and errors remain visible.
+
+For a short diagnostic capture, set `Fulltext.level = FINE` and `org.apache.solr.update.processor.LogUpdateProcessorFactory.level = INFO` in `DATA/LOG/yacy.logging`. The file is read on startup; editing it does not change a running process. Schedule any restart after an active import has finished. Restore the normal levels after the capture to avoid per-document logging during bulk imports.
+
 ## Access And Safety
 
 Administrator access is required. YaCy protects `_p` pages as administration pages.

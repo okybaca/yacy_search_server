@@ -1825,6 +1825,7 @@ comma-separated (default: 404,410,-1; -1=DNS/network errors)==διαχωρισμ
 #-----------------------------
 
 #File: IndexImportJsonList_p.html
+Server file:==Αρχείο διακομιστή:
 #---------------------------
 "Import JsonList File"=="Εισαγωγή αρχείου JsonList"
 "Stop"=="Στάση"
@@ -1945,12 +1946,29 @@ Remaining Time:==Χρόνος που απομένει:
 
 #File: IndexPackDownloader_p.html
 #---------------------------
+First download a pack. Then open Pack Manager and select load to import it into the index.==Κατεβάστε πρώτα ένα πακέτο. Έπειτα ανοίξτε το Pack Manager και επιλέξτε load για εισαγωγή στο ευρετήριο.
+Next step: open Pack Manager and select load beside this pack to import it into the index.==Επόμενο βήμα: Ανοίξτε το Pack Manager και επιλέξτε load δίπλα σε αυτό το πακέτο για εισαγωγή στο ευρετήριο.
+Large packs can take several minutes. Keep this page open until completion.==Η λήψη μεγάλων πακέτων μπορεί να διαρκέσει αρκετά λεπτά. Κρατήστε αυτή τη σελίδα ανοιχτή μέχρι να ολοκληρωθεί.
+The transfer may still be running. Check Pack Manager before retrying.==Η μεταφορά ίσως συνεχίζεται. Ελέγξτε το Pack Manager πριν δοκιμάσετε ξανά.
+Download status unavailable.==Η κατάσταση λήψης δεν είναι διαθέσιμη.
+Downloaded; ready to import.==Λήφθηκε· έτοιμο για εισαγωγή.
+Import in Pack Manager==Εισαγωγή στο Pack Manager
 YaCy Pack Downloader==YaCy Πρόγραμμα λήψης πακέτων
+View in Pack Manager==Προβολή στο Pack Manager
+Queued or importing.==Στην ουρά ή σε εισαγωγή.
+Download completed:==Η λήψη ολοκληρώθηκε:
+Download failed:==Η λήψη απέτυχε:
 Available Packs==Διαθέσιμα πακέτα
-Source==Πηγή
+Pack processed.==Η επεξεργασία ολοκληρώθηκε.
+Stored locally.==Αποθηκευμένο τοπικά.
+Downloading...==Γίνεται λήψη...
+Download size==Μέγεθος λήψης
+>Download<==>Λήψη<
+Unknown==Άγνωστο
 Repo ID==Αναγνωριστικό repo
-File==Αρχείο
 Process==Διαδικασία
+Source==Πηγή
+File==Αρχείο
 #-----------------------------
 
 #File: IndexPackGenerator_p.html
@@ -1996,13 +2014,23 @@ Size (KB)==Μέγεθος (KB)
 
 #File: IndexPackManager_p.html
 #---------------------------
+Status unavailable; displayed values may be outdated.==Η κατάσταση δεν είναι διαθέσιμη· οι τιμές μπορεί να είναι παλιές.
+Stopping; processing queued documents==Διακοπή· επεξεργασία εγγράφων ουράς
+Processing last documents==Επεξεργασία τελευταίων εγγράφων
+Queued or processing.==Στην ουρά ή σε επεξεργασία.
+View import activity==Προβολή δραστηριότητας εισαγωγής
+Waiting for import.==Αναμονή για εισαγωγή.
+Submitted to index:==Υποβλήθηκαν στο ευρετήριο:
+Packs: Loaded List==Πακέτα: Φορτωμένη λίστα
 YaCy Pack Manager==YaCy Διαχειριστής πακέτων
-Pack Folders==Συσκευασία φακέλων
 Packs: Hold List==Πακέτα: Λίστα αναμονής
+Packs: Load List==Πακέτα: Λίστα φόρτωσης
+Import running==Η εισαγωγή εκτελείται
+Pack Folders==Συσκευασία φακέλων
+Documents/s:==Έγγραφα/δευτ.:
+File read:==Ανάγνωση αρχείου:
 Size (KB)==Μέγεθος (KB)
 Process==Διαδικασία
-Packs: Load List==Πακέτα: Λίστα φόρτωσης
-Packs: Loaded List==Πακέτα: Φορτωμένη λίστα
 #-----------------------------
 
 #File: IndexReIndexMonitor_p.html
@@ -4539,4 +4567,46 @@ Apps==Εφαρμογές
 Extended==Εκτεταμένη
 Strict==Αυστηρός
 Location==Τοποθεσία
+#-----------------------------
+
+#File: env/templates/importStatus.template
+Loading import status...==Φόρτωση κατάστασης εισαγωγής...
+#---------------------------
+Reading 100% does not finish the import. Index submissions can replace existing documents.==Η ανάγνωση του 100% δεν ολοκληρώνει την εισαγωγή. Οι υποβολές στο ευρετήριο μπορούν να αντικαταστήσουν υπάρχοντα έγγραφα.
+Recent errors (up to 10 groups; location of last occurrence):==Πρόσφατα σφάλματα (έως 10 ομάδες· θέση τελευταίας εμφάνισης):
+Status unavailable; displayed values may be outdated.==Η κατάσταση δεν είναι διαθέσιμη· οι τιμές μπορεί να είναι παλιές.
+Enable JavaScript for live import monitoring.==Ενεργοποιήστε τη JavaScript για ζωντανή παρακολούθηση.
+No JSON import has run since startup.==Δεν έχει εκτελεστεί εισαγωγή JSON από την εκκίνηση.
+No progress for at least 60 seconds.==Καμία πρόοδος για τουλάχιστον 60 δευτερόλεπτα.
+Stop after queued documents==Διακοπή μετά τα έγγραφα της ουράς
+Estimated read time left:==Εκτιμώμενος υπόλοιπος χρόνος ανάγνωσης:
+Seconds since progress:==Δευτερόλεπτα από την πρόοδο:
+Submitted to index:==Υποβλήθηκαν στο ευρετήριο:
+JSON / Pack Import==Εισαγωγή JSON / Pack
+Not yet available==Δεν είναι ακόμη διαθέσιμο
+Documents read:==Έγγραφα που διαβάστηκαν:
+Ignored fields:==Πεδία που αγνοήθηκαν:
+Busy workers:==Απασχολημένα νήματα:
+Documents/s:==Έγγραφα/δευτ.:
+Occurrences==Εμφανίσεις
+File read:==Ανάγνωση αρχείου:
+Skipped:==Παραλείφθηκαν:
+Elapsed:==Χρόνος εκτέλεσης:
+Document==Έγγραφο
+Errors:==Σφάλματα:
+Queue:==Ουρά:
+Error==Σφάλμα
+Line==Γραμμή
+#-----------------------------
+
+#File: env/templates/importStates.template
+#---------------------------
+Stopping; processing queued documents==Διακοπή· επεξεργασία εγγράφων ουράς
+Import completed with errors==Η εισαγωγή ολοκληρώθηκε με σφάλματα
+Processing last documents==Επεξεργασία τελευταίων εγγράφων
+Preparing import==Προετοιμασία εισαγωγής
+Import completed==Η εισαγωγή ολοκληρώθηκε
+Import running==Η εισαγωγή εκτελείται
+Import aborted==Η εισαγωγή διακόπηκε
+Import failed==Η εισαγωγή απέτυχε
 #-----------------------------

@@ -1815,6 +1815,7 @@ comma-separated (default: 404,410,-1; -1=DNS/network errors)==अल्पवि
 #-----------------------------
 
 #File: IndexImportJsonList_p.html
+Server file:==सर्वर फ़ाइल:
 #---------------------------
 "Import JsonList File"=="JsonList फ़ाइल आयात करें"
 "Stop"=="रुकना"
@@ -1935,12 +1936,29 @@ Remaining Time:==शेष समय:
 
 #File: IndexPackDownloader_p.html
 #---------------------------
+First download a pack. Then open Pack Manager and select load to import it into the index.==पहले पैक डाउनलोड करें। फिर Pack Manager खोलें और इंडेक्स में आयात करने के लिए load चुनें।
+Next step: open Pack Manager and select load beside this pack to import it into the index.==अगला चरण: Pack Manager खोलें और इस पैक के पास load चुनकर इसे इंडेक्स में आयात करें।
+Large packs can take several minutes. Keep this page open until completion.==बड़े पैक में कई मिनट लग सकते हैं। पूरा होने तक यह पेज खुला रखें।
+The transfer may still be running. Check Pack Manager before retrying.==स्थानांतरण अभी भी चल सकता है। फिर से प्रयास करने से पहले Pack Manager देखें।
+Download status unavailable.==डाउनलोड की स्थिति उपलब्ध नहीं है।
+Downloaded; ready to import.==डाउनलोड हो गया; आयात के लिए तैयार।
+Import in Pack Manager==Pack Manager में आयात करें
 YaCy Pack Downloader==YaCy पैक डाउनलोडर
+View in Pack Manager==Pack Manager में देखें
+Queued or importing.==कतार में है या आयात हो रहा है।
+Download completed:==डाउनलोड पूरा हुआ:
+Download failed:==डाउनलोड विफल:
 Available Packs==उपलब्ध पैक
-Source==स्रोत
+Pack processed.==पैक संसाधित हो गया।
+Stored locally.==स्थानीय रूप से सहेजा गया।
+Downloading...==डाउनलोड हो रहा है...
+Download size==डाउनलोड आकार
+>Download<==>डाउनलोड करें<
+Unknown==अज्ञात
 Repo ID==रेपो आईडी
-File==फ़ाइल
 Process==प्रक्रिया
+Source==स्रोत
+File==फ़ाइल
 #-----------------------------
 
 #File: IndexPackGenerator_p.html
@@ -1986,13 +2004,23 @@ Size (KB)==आकार (केबी)
 
 #File: IndexPackManager_p.html
 #---------------------------
+Status unavailable; displayed values may be outdated.==स्थिति उपलब्ध नहीं; दिखाए गए मान पुराने हो सकते हैं।
+Stopping; processing queued documents==रुक रहा है; कतार के दस्तावेज़ संसाधित हो रहे हैं
+Processing last documents==अंतिम दस्तावेज़ संसाधित हो रहे हैं
+Queued or processing.==कतार में या संसाधित हो रहा है।
+View import activity==आयात गतिविधि देखें
+Waiting for import.==आयात की प्रतीक्षा में।
+Submitted to index:==इंडेक्स को भेजे गए:
+Packs: Loaded List==पैक्स: भरी हुई सूची
 YaCy Pack Manager==YaCy पैक प्रबंधक
-Pack Folders==फ़ोल्डर पैक करें
 Packs: Hold List==पैक्स: सूची होल्ड करें
+Packs: Load List==पैक्स: लोड सूची
+Import running==आयात चल रहा है
+Pack Folders==फ़ोल्डर पैक करें
+Documents/s:==दस्तावेज़/सेकंड:
+File read:==पढ़ी गई फ़ाइल:
 Size (KB)==आकार (केबी)
 Process==प्रक्रिया
-Packs: Load List==पैक्स: लोड सूची
-Packs: Loaded List==पैक्स: भरी हुई सूची
 #-----------------------------
 
 #File: IndexReIndexMonitor_p.html
@@ -4529,4 +4557,46 @@ Apps==ऐप्स
 Extended==विस्तारित
 Strict==कठोर
 Location==जगह
+#-----------------------------
+
+#File: env/templates/importStatus.template
+Loading import status...==आयात की स्थिति लोड हो रही है...
+#---------------------------
+Reading 100% does not finish the import. Index submissions can replace existing documents.==100% पढ़ने से आयात पूरा नहीं होता। इंडेक्स में भेजे गए दस्तावेज़ पुराने दस्तावेज़ों को बदल सकते हैं।
+Recent errors (up to 10 groups; location of last occurrence):==हाल की त्रुटियाँ (अधिकतम 10 समूह; अंतिम घटना का स्थान):
+Status unavailable; displayed values may be outdated.==स्थिति उपलब्ध नहीं; दिखाए गए मान पुराने हो सकते हैं।
+Enable JavaScript for live import monitoring.==आयात की लाइव निगरानी के लिए JavaScript चालू करें।
+No JSON import has run since startup.==शुरू होने के बाद कोई JSON आयात नहीं हुआ है।
+No progress for at least 60 seconds.==कम से कम 60 सेकंड से कोई प्रगति नहीं।
+Stop after queued documents==कतार के दस्तावेज़ों के बाद रोकें
+Estimated read time left:==अनुमानित शेष पढ़ने का समय:
+Seconds since progress:==पिछली प्रगति के बाद सेकंड:
+Submitted to index:==इंडेक्स को भेजे गए:
+JSON / Pack Import==JSON / Pack आयात
+Not yet available==अभी उपलब्ध नहीं
+Documents read:==पढ़े गए दस्तावेज़:
+Ignored fields:==अनदेखे फ़ील्ड:
+Busy workers:==व्यस्त थ्रेड:
+Documents/s:==दस्तावेज़/सेकंड:
+Occurrences==घटनाएँ
+File read:==पढ़ी गई फ़ाइल:
+Skipped:==छोड़े गए:
+Elapsed:==बीता समय:
+Document==दस्तावेज़
+Errors:==त्रुटियाँ:
+Queue:==कतार:
+Error==त्रुटि
+Line==पंक्ति
+#-----------------------------
+
+#File: env/templates/importStates.template
+#---------------------------
+Stopping; processing queued documents==रुक रहा है; कतार के दस्तावेज़ संसाधित हो रहे हैं
+Import completed with errors==आयात त्रुटियों के साथ पूरा हुआ
+Processing last documents==अंतिम दस्तावेज़ संसाधित हो रहे हैं
+Preparing import==आयात की तैयारी
+Import completed==आयात पूरा हुआ
+Import running==आयात चल रहा है
+Import aborted==आयात रोका गया
+Import failed==आयात विफल हुआ
 #-----------------------------

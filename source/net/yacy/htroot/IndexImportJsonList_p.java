@@ -20,98 +20,59 @@
 package net.yacy.htroot;
 
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.net.URL;
-import java.nio.channels.Channels;
+import java.nio.file.Files;
 
 import net.yacy.cora.protocol.RequestHeader;
+import net.yacy.data.TransactionManager;
 import net.yacy.document.importer.JsonListImporter;
+import net.yacy.search.Switchboard;
 import net.yacy.server.serverObjects;
 import net.yacy.server.serverSwitch;
 
 public class IndexImportJsonList_p {
 
     public static serverObjects respond(final RequestHeader header, final serverObjects post, final serverSwitch env) {
+        final Switchboard sb = (Switchboard) env;
         final serverObjects prop = new serverObjects();
-
-        if (JsonListImporter.job != null && JsonListImporter.job.isAlive()) {
-            // one import is running, no option to insert anything
-            prop.put("import", 1);
-            prop.put("import_thread", "running");
-            prop.put("import_jsonlistfile", JsonListImporter.job.source());
-            prop.put("import_count", JsonListImporter.job.count());
-            prop.put("import_speed", JsonListImporter.job.speed());
-            prop.put("import_runningHours", (JsonListImporter.job.runningTime() / 60) / 60);
-            prop.put("import_runningMinutes", (JsonListImporter.job.runningTime() / 60) % 60);
-            prop.put("import_remainingHours", (JsonListImporter.job.remainingTime() / 60) / 60);
-            prop.put("import_remainingMinutes", (JsonListImporter.job.remainingTime() / 60) % 60);
-            if (post != null && post.containsKey("abort")) {
-                JsonListImporter.job.quit();
-            }
-        } else {
-            prop.put("import", 0);
-            if (post != null) {
-                if (post.containsKey("file") || post.containsKey("url")) {
-                    final String filename = post.get("file");
-                    if (filename != null && filename.length() > 0) {
-                        final File sourcefile = new File(filename);
-                        if (sourcefile.exists()) {
-                            try {
-                                final JsonListImporter wi = new JsonListImporter(sourcefile, false, false);
-                                wi.start();
-                                prop.put("import_thread", "started");
-                            } catch (final IOException ex) {
-                                prop.put("import_thread", "Error: file not found [" + filename + "]");
-                            }
-                            prop.put("import", 1);
-                            prop.put("import_jsonlistfile", filename);
-                        } else {
-                            prop.put("import_jsonlistfile", "");
-                            prop.put("import_thread", "Error: file not found [" + filename + "]");
-                        }
-                    } else {
-                        final String urlstr = post.get("url");
-/*
-                                final HTTPClient client = new HTTPClient(ClientIdentification.yacyInternetCrawlerAgent);
-                                final byte[] b = client.GETbytes(urlstr, null, null, true);
-                                final File tempfile = File.createTempFile("jsonlistimporter", "");
-                                final FileOutputStream fos = new FileOutputStream(tempfile);
-                                fos.write(b);
-                                fos.close();
-                                client.close();
- */
-                        if (urlstr != null && urlstr.length() > 0) {
-                            try {
-                                final URL url = new URI(urlstr).toURL();
-                                final String tempfilename = "jsonlistimporter";
-                                final boolean gz = urlstr.endsWith(".gz");
-                                final File tempfile = File.createTempFile(tempfilename, "");
-                                final FileOutputStream fos = new FileOutputStream(tempfile);
-                                fos.getChannel().transferFrom(Channels.newChannel(url.openStream()), 0, Long.MAX_VALUE);
-                                fos.close();
-                                final JsonListImporter wi = new JsonListImporter(tempfile, gz, true);
-                                wi.start();
-                                prop.put("import_thread", "started");
-                            } catch (final IOException | URISyntaxException ex) {
-                                prop.put("import_thread", ex.getMessage());
-                            }
-                            prop.put("import", 1);
-                            prop.put("import_jsonlistfile", urlstr);
-                        }
+        prop.put("importStatusToken", TransactionManager.getTransactionToken(header, "/IndexImportJsonList_p.html"));
+        prop.put("error", 0);
+        final JsonListImporter current = JsonListImporter.job;
+        if (post != null && post.containsKey("abort")) {
+            TransactionManager.checkPostTransaction(header, post);
+            // An old browser tab must not stop a newer import.
+            if (current != null && current.getJobId().equals(post.get("job", ""))) current.quit();
+        } else if ((current == null || !current.isActive()) && post != null) {
+            final String filename = post.get("file", "");
+            final String url = post.get("url", "");
+            File temporary = null;
+            try {
+                if (!filename.isEmpty()) {
+                    new JsonListImporter(new File(filename), false, false, sb.index.fulltext()).start();
+                } else if (!url.isEmpty()) {
+                    final URI sourceUri = new URI(url);
+                    final String sourcePath = sourceUri.getPath();
+                    temporary = File.createTempFile("jsonlistimporter", ".jsonl");
+                    try (final InputStream source = sourceUri.toURL().openStream();
+                            final OutputStream target = Files.newOutputStream(temporary.toPath())) {
+                        source.transferTo(target);
                     }
-
-                    prop.put("import_count", 0);
-                    prop.put("import_speed", 0);
-                    prop.put("import_runningHours", 0);
-                    prop.put("import_runningMinutes", 0);
-                    prop.put("import_remainingHours", 0);
-                    prop.put("import_remainingMinutes", 0);
+                    new JsonListImporter(temporary, sourcePath != null && sourcePath.endsWith(".gz"), true, sb.index.fulltext()).start();
+                    temporary = null; // The importer owns successful temporary downloads.
                 }
+            } catch (final IOException | URISyntaxException | IllegalArgumentException | IllegalStateException e) {
+                prop.put("error", 1);
+                prop.putHTML("error_message", e.getMessage());
+            } finally {
+                if (temporary != null) temporary.delete();
             }
         }
+        final JsonListImporter latest = JsonListImporter.job;
+        prop.put("importActive", latest != null && latest.isActive());
         return prop;
     }
 }

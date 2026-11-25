@@ -1,0 +1,10 @@
+    <div id="import-messages" hidden="hidden">
+      <span data-state="NEW">Preparing import</span>
+      <span data-state="RUNNING">Import running</span>
+      <span data-state="DRAINING">Processing last documents</span>
+      <span data-state="STOPPING">Stopping; processing queued documents</span>
+      <span data-state="COMPLETED">Import completed</span>
+      <span data-state="COMPLETED_WITH_ERRORS">Import completed with errors</span>
+      <span data-state="ABORTED">Import aborted</span>
+      <span data-state="FAILED">Import failed</span>
+    </div>

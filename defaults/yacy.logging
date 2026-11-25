@@ -123,6 +123,8 @@ org.apache.solr.schema.IndexSchema.level = SEVERE
 org.apache.solr.search.SolrIndexSearcher.level = SEVERE
 org.apache.solr.spelling.DirectSolrSpellChecker.level = SEVERE
 org.apache.solr.update.processor.LogUpdateProcessor.level = OFF
+# Solr 9 logs per-update summaries through the factory logger; keep only problems.
+org.apache.solr.update.processor.LogUpdateProcessorFactory.level = WARNING
 org.apache.solr.update.DefaultSolrCoreState.level = SEVERE
 org.apache.solr.update.SolrCoreState.level = SEVERE
 org.apache.solr.update.SolrIndexWriter.level = INFO

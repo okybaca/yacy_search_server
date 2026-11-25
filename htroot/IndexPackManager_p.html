@@ -1,7 +1,6 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "DTD/xhtml1-transitional.dtd">
 <!-- This page is only XHTML 1.0 Transitional because target is being used in a links -->
 <html xmlns="http://www.w3.org/1999/xhtml">
-#(reload)#::<meta http-equiv="REFRESH" content="5; url=/IndexPackManager_p.html">#(/reload)#
   <head>
     <title>YaCy '#[clientname]#': Index Pack Manager</title>
     #%env/templates/metas.template%#
@@ -13,7 +12,8 @@
     <h2>YaCy Pack Manager</h2>
 
 
-    <fieldset><legend>Pack Folders</legend>
+    <fieldset id="pack-folders"><legend>Pack Folders</legend>
+        <span id="pack-waiting-label" hidden="hidden">Waiting for import.</span>
         <table class="table table-striped" summary="Packs: Hold List">
             <thead class="thead-dark">
             <tr class="TableHeader"><th width="720">Packs: Hold List</th><th width="180">Size (KB)</th><th>Process</th></tr>
@@ -31,9 +31,31 @@
             </thead>
             <tbody>
         #{packs-load}#
-            <tr class="TableCell#(dark)#Light::Dark#(/dark)#"><td>#[file]#</td><td class="text-end">#[size]#</td><td>#[process]#</td></tr>
+            <tr class="TableCell#(dark)#Light::Dark#(/dark)#">
+                <td>#[file]#</td><td class="text-end">#[size]#</td>
+                <td data-pack-file="#[file]#">
+                    #(json)#
+                    <p>Queued or processing.</p>
+                    <a data-pack-activity="true" href="CrawlResults.html?process=7">View import activity</a>
+                    ::
+                    <div data-pack-progress-row="true" data-pack-job="#[job]#">
+                        <p data-pack-state="true">#(phase)#Waiting for import.::Import running::Processing last documents::Stopping; processing queued documents::Status unavailable; displayed values may be outdated.#(/phase)#</p>
+                        <div data-pack-progress="true" #(active)#hidden="hidden"::#(/active)#>
+                            <div>File read: <span data-pack-percent="true">#[percent-label]#</span>%</div>
+                            <progress data-pack-bar="true" max="100" value="#[percent]#" aria-label="File read:" style="width: 100%;"></progress>
+                            <div>Submitted to index: <span data-pack-submitted="true">#[submitted]#</span></div>
+                            <div>Documents/s: <span data-pack-speed="true">#[speed]#</span></div>
+                        </div>
+                        <p data-pack-stale="true" class="text-warning" hidden="hidden">Status unavailable; displayed values may be outdated.</p>
+                        <a href="IndexImportJsonList_p.html">View import activity</a>
+                    </div>
+                    ::
+                    #(/json)#
+                </td>
+            </tr>
         #{/packs-load}#
             </tbody>
+        </table>
 
         <table class="table table-striped" summary="Packs: Loaded List">
             <thead class="thead-dark">
@@ -47,6 +69,8 @@
         </table>
     </fieldset>
 
+    #%env/templates/importStates.template%#
+    <script src="js/import-monitor.js?v=3" defer="defer"></script>
     #%env/templates/footer.template%#
   </body>
 </html>

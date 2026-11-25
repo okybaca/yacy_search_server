@@ -150,7 +150,7 @@
       <dependency org="org.eclipse.jetty.http2" name="http2-client" rev="10.0.26" conf="solr9-bridge->master"/>
       <dependency org="org.eclipse.jetty.http2" name="http2-common" rev="10.0.26" conf="solr9-bridge->master"/>
       <dependency org="org.eclipse.jetty.http2" name="http2-http-client-transport" rev="10.0.26" conf="solr9-bridge->master"/>
-      <dependency org="org.jsoup" name="jsoup" rev="1.22.2"  />
+      <dependency org="org.jsoup" name="jsoup" rev="1.23.2"  />
       <dependency org="org.jwat" name="jwat-warc" rev="1.2.1">
         <exclude module="bcprov-jdk15to18" />
       </dependency>

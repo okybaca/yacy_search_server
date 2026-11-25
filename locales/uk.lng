@@ -3450,6 +3450,7 @@ Delete by Solr Query==Видалити за запитом Solr
 This is the most generic option: select a set of documents using a solr query.==Це найбільш загальний варіант: виберіть набір документів за допомогою запиту solr.
 Core==Ядро
 #File: IndexImportJsonList_p.html
+Server file:==Файл на сервері:
 #---------------------------
 File:==Файл:
 Import Process==Процес імпорту
@@ -3973,12 +3974,29 @@ Import this file by moving it to DATA/PACKS/load==Імпортуйте цей ф
 
 #File: IndexPackDownloader_p.html
 #---------------------------
+First download a pack. Then open Pack Manager and select load to import it into the index.==Спочатку завантажте пакет. Потім відкрийте Pack Manager і виберіть load для імпорту до індексу.
+Next step: open Pack Manager and select load beside this pack to import it into the index.==Наступний крок: Відкрийте Pack Manager і виберіть load біля цього пакета для імпорту до індексу.
+Large packs can take several minutes. Keep this page open until completion.==Завантаження великих пакетів може тривати кілька хвилин. Тримайте цю сторінку відкритою до завершення.
+The transfer may still be running. Check Pack Manager before retrying.==Передавання, можливо, ще триває. Перед повторною спробою перевірте Pack Manager.
+Download status unavailable.==Стан завантаження недоступний.
+Downloaded; ready to import.==Завантажено; готово до імпорту.
+Import in Pack Manager==Імпортувати в Pack Manager
 YaCy Pack Downloader==YaCy Pack Downloader
+View in Pack Manager==Переглянути в Pack Manager
+Queued or importing.==У черзі або імпортується.
+Download completed:==Завантаження завершено:
+Download failed:==Помилка завантаження:
 Available Packs==Доступні пакети
-Source==Джерело
+Pack processed.==Пакет оброблено.
+Stored locally.==Збережено локально.
+Downloading...==Завантаження...
+Download size==Розмір завантаження
+>Download<==>Завантажити<
+Unknown==Невідомо
 Repo ID==Ідентифікатор репо
-File==Файл
 Process==процес
+Source==Джерело
+File==Файл
 #-----------------------------
 
 #File: IndexPackGenerator_p.html
@@ -4024,13 +4042,23 @@ Size (KB)==Розмір (Кб)
 
 #File: IndexPackManager_p.html
 #---------------------------
+Status unavailable; displayed values may be outdated.==Стан недоступний; показані значення можуть бути застарілими.
+Stopping; processing queued documents==Зупинка; обробка документів у черзі
+Processing last documents==Обробка останніх документів
+Queued or processing.==У черзі або обробляється.
+View import activity==Переглянути активність імпорту
+Waiting for import.==Очікування імпорту.
+Submitted to index:==Передано до індексу:
+Packs: Loaded List==Пакети: завантажений список
 YaCy Pack Manager==YaCy Pack Manager
-Pack Folders==Пакуйте папки
 Packs: Hold List==Пакети: Список утримання
+Packs: Load List==Пакети: список завантажень
+Import running==Імпорт триває
+Pack Folders==Пакуйте папки
+Documents/s:==Документів/с:
+File read:==Прочитано з файлу:
 Size (KB)==Розмір (Кб)
 Process==процес
-Packs: Load List==Пакети: список завантажень
-Packs: Loaded List==Пакети: завантажений список
 #-----------------------------
 
 #File: LLMSelection_p.html
@@ -4601,4 +4629,46 @@ rss terminal==rss термінал
 "Next page"=="Наступна сторінка"
 &laquo;==&laquo;
 &raquo;==&raquo;
+#-----------------------------
+
+#File: env/templates/importStatus.template
+Loading import status...==Завантаження стану імпорту...
+#---------------------------
+Reading 100% does not finish the import. Index submissions can replace existing documents.==Читання 100% не завершує імпорт. Передані до індексу документи можуть замінити наявні.
+Recent errors (up to 10 groups; location of last occurrence):==Останні помилки (до 10 груп; місце останньої появи):
+Status unavailable; displayed values may be outdated.==Стан недоступний; показані значення можуть бути застарілими.
+Enable JavaScript for live import monitoring.==Увімкніть JavaScript для спостереження за імпортом.
+No JSON import has run since startup.==Після запуску імпорт JSON не виконувався.
+No progress for at least 60 seconds.==Немає поступу щонайменше 60 секунд.
+Stop after queued documents==Зупинити після документів у черзі
+Estimated read time left:==Оцінка часу читання, що залишився:
+Seconds since progress:==Секунд від останнього поступу:
+Submitted to index:==Передано до індексу:
+JSON / Pack Import==Імпорт JSON / Pack
+Not yet available==Ще недоступно
+Documents read:==Прочитано документів:
+Ignored fields:==Ігноровані поля:
+Busy workers:==Зайняті потоки:
+Documents/s:==Документів/с:
+Occurrences==Повторення
+File read:==Прочитано з файлу:
+Skipped:==Пропущено:
+Elapsed:==Минуло часу:
+Document==Документ
+Errors:==Помилки:
+Queue:==Черга:
+Error==Помилка
+Line==Рядок
+#-----------------------------
+
+#File: env/templates/importStates.template
+#---------------------------
+Stopping; processing queued documents==Зупинка; обробка документів у черзі
+Import completed with errors==Імпорт завершено з помилками
+Processing last documents==Обробка останніх документів
+Preparing import==Підготовка імпорту
+Import completed==Імпорт завершено
+Import running==Імпорт триває
+Import aborted==Імпорт перервано
+Import failed==Збій імпорту
 #-----------------------------

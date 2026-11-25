@@ -1824,6 +1824,7 @@ comma-separated (default: 404,410,-1; -1=DNS/network errors)==oddelené čiarkam
 #-----------------------------
 
 #File: IndexImportJsonList_p.html
+Server file:==Súbor na serveri:
 #---------------------------
 "Import JsonList File"=="Importujte súbor JsonList"
 "Stop"=="Stop"
@@ -1944,12 +1945,29 @@ Remaining Time:==Zostávajúci čas:
 
 #File: IndexPackDownloader_p.html
 #---------------------------
+First download a pack. Then open Pack Manager and select load to import it into the index.==Najprv stiahnite balík. Potom otvorte Pack Manager a vyberte load na import do indexu.
+Next step: open Pack Manager and select load beside this pack to import it into the index.==Ďalší krok: Otvorte Pack Manager a vyberte load pri tomto balíku na import do indexu.
+Large packs can take several minutes. Keep this page open until completion.==Veľké balíky môžu trvať niekoľko minút. Nechajte túto stránku otvorenú až do dokončenia.
+The transfer may still be running. Check Pack Manager before retrying.==Prenos môže stále prebiehať. Pred ďalším pokusom skontrolujte Pack Manager.
+Download status unavailable.==Stav sťahovania nie je dostupný.
+Downloaded; ready to import.==Stiahnuté; pripravené na import.
+Import in Pack Manager==Importovať v Pack Manager
 YaCy Pack Downloader==YaCy Pack Downloader
+View in Pack Manager==Zobraziť v Pack Manager
+Queued or importing.==Čaká vo fronte alebo sa importuje.
+Download completed:==Sťahovanie dokončené:
+Download failed:==Sťahovanie zlyhalo:
 Available Packs==Dostupné balíčky
-Source==Zdroj
+Pack processed.==Balík spracovaný.
+Stored locally.==Uložené lokálne.
+Downloading...==Sťahovanie...
+Download size==Veľkosť sťahovania
+>Download<==>Stiahnuť<
+Unknown==Neznáma
 Repo ID==Repo ID
-File==Súbor
 Process==Proces
+Source==Zdroj
+File==Súbor
 #-----------------------------
 
 #File: IndexPackGenerator_p.html
@@ -1995,13 +2013,23 @@ Size (KB)==Veľkosť (kB)
 
 #File: IndexPackManager_p.html
 #---------------------------
+Status unavailable; displayed values may be outdated.==Stav nie je dostupný; zobrazené hodnoty môžu byť zastarané.
+Stopping; processing queued documents==Zastavovanie; spracovanie dokumentov vo fronte
+Processing last documents==Spracovanie posledných dokumentov
+Queued or processing.==Vo fronte alebo sa spracúva.
+View import activity==Zobraziť aktivitu importu
+Waiting for import.==Čaká na import.
+Submitted to index:==Odovzdané do indexu:
+Packs: Loaded List==Packs: Loaded List
 YaCy Pack Manager==YaCy Správca balíkov
-Pack Folders==Zbaliť priečinky
 Packs: Hold List==Packs: Hold List
+Packs: Load List==Packs: Load List
+Import running==Import prebieha
+Pack Folders==Zbaliť priečinky
+Documents/s:==Dokumenty/s:
+File read:==Prečítaný súbor:
 Size (KB)==Veľkosť (kB)
 Process==Proces
-Packs: Load List==Packs: Load List
-Packs: Loaded List==Packs: Loaded List
 #-----------------------------
 
 #File: IndexReIndexMonitor_p.html
@@ -4538,4 +4566,46 @@ Apps==Aplikácie
 Extended==Rozšírené
 Strict==Prísne
 Location==Miesto
+#-----------------------------
+
+#File: env/templates/importStatus.template
+Loading import status...==Načítava sa stav importu...
+#---------------------------
+Reading 100% does not finish the import. Index submissions can replace existing documents.==Prečítanie 100% neukončuje import. Odovzdané dokumenty môžu nahradiť existujúce dokumenty.
+Recent errors (up to 10 groups; location of last occurrence):==Posledné chyby (najviac 10 skupín; poloha posledného výskytu):
+Status unavailable; displayed values may be outdated.==Stav nie je dostupný; zobrazené hodnoty môžu byť zastarané.
+Enable JavaScript for live import monitoring.==Zapnite JavaScript na živé sledovanie importu.
+No JSON import has run since startup.==Od spustenia nebol vykonaný žiadny import JSON.
+No progress for at least 60 seconds.==Žiadny pokrok aspoň 60 sekúnd.
+Stop after queued documents==Zastaviť po dokumentoch vo fronte
+Estimated read time left:==Odhadovaný zostávajúci čas čítania:
+Seconds since progress:==Sekundy od posledného pokroku:
+Submitted to index:==Odovzdané do indexu:
+JSON / Pack Import==Import JSON / Pack
+Not yet available==Zatiaľ nedostupné
+Documents read:==Prečítané dokumenty:
+Ignored fields:==Ignorované polia:
+Busy workers:==Zaneprázdnené vlákna:
+Documents/s:==Dokumenty/s:
+Occurrences==Výskyty
+File read:==Prečítaný súbor:
+Skipped:==Preskočené:
+Elapsed:==Uplynutý čas:
+Document==Dokument
+Errors:==Chyby:
+Queue:==Front:
+Error==Chyba
+Line==Riadok
+#-----------------------------
+
+#File: env/templates/importStates.template
+#---------------------------
+Stopping; processing queued documents==Zastavovanie; spracovanie dokumentov vo fronte
+Import completed with errors==Import dokončený s chybami
+Processing last documents==Spracovanie posledných dokumentov
+Preparing import==Príprava importu
+Import completed==Import dokončený
+Import running==Import prebieha
+Import aborted==Import prerušený
+Import failed==Import zlyhal
 #-----------------------------

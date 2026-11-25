@@ -1830,6 +1830,7 @@ comma-separated (default: 404,410,-1; -1=DNS/network errors)==oddzielone przecin
 #-----------------------------
 
 #File: IndexImportJsonList_p.html
+Server file:==Plik na serwerze:
 #---------------------------
 "Import JsonList File"=="Importuj plik JsonList"
 "Stop"=="Zatrzymaj"
@@ -1950,12 +1951,29 @@ Remaining Time:==Pozostały czas:
 
 #File: IndexPackDownloader_p.html
 #---------------------------
+First download a pack. Then open Pack Manager and select load to import it into the index.==Najpierw pobierz pakiet. Następnie otwórz Pack Manager i wybierz load, aby zaimportować go do indeksu.
+Next step: open Pack Manager and select load beside this pack to import it into the index.==Następny krok: Otwórz Pack Manager i wybierz load obok tego pakietu, aby zaimportować go do indeksu.
+Large packs can take several minutes. Keep this page open until completion.==Duże pakiety mogą wymagać kilku minut. Pozostaw tę stronę otwartą do zakończenia.
+The transfer may still be running. Check Pack Manager before retrying.==Przesyłanie może nadal trwać. Przed ponowną próbą sprawdź Pack Manager.
+Download status unavailable.==Stan pobierania niedostępny.
+Downloaded; ready to import.==Pobrano; gotowy do importu.
+Import in Pack Manager==Importuj w Pack Manager
 YaCy Pack Downloader==Pobieranie pakietów YaCy
+View in Pack Manager==Zobacz w Pack Manager
+Queued or importing.==W kolejce lub importowany.
+Download completed:==Pobieranie zakończone:
+Download failed:==Pobieranie nie powiodło się:
 Available Packs==Dostępne pakiety
-Source==Źródło
+Pack processed.==Pakiet przetworzony.
+Stored locally.==Zapisany lokalnie.
+Downloading...==Pobieranie...
+Download size==Rozmiar pobierania
+>Download<==>Pobierz<
+Unknown==Nieznany
 Repo ID==ID repozytorium
-File==Plik
 Process==Przetwórz
+Source==Źródło
+File==Plik
 #-----------------------------
 
 #File: IndexPackGenerator_p.html
@@ -2001,13 +2019,23 @@ Size (KB)==Rozmiar (KB)
 
 #File: IndexPackManager_p.html
 #---------------------------
+Status unavailable; displayed values may be outdated.==Stan niedostępny; wyświetlane wartości mogą być nieaktualne.
+Stopping; processing queued documents==Zatrzymywanie; przetwarzanie dokumentów w kolejce
+Processing last documents==Przetwarzanie ostatnich dokumentów
+Queued or processing.==W kolejce lub w trakcie przetwarzania.
+View import activity==Zobacz aktywność importu
+Waiting for import.==Oczekiwanie na import.
+Submitted to index:==Przekazane do indeksu:
+Packs: Loaded List==Pakiety: lista załadowanych
 YaCy Pack Manager==Menedżer pakietów YaCy
-Pack Folders==Foldery pakietów
 Packs: Hold List==Pakiety: lista wstrzymanych
+Packs: Load List==Pakiety: lista ładowania
+Import running==Import trwa
+Pack Folders==Foldery pakietów
+Documents/s:==Dokumenty/s:
+File read:==Odczyt pliku:
 Size (KB)==Rozmiar (KB)
 Process==Przetwórz
-Packs: Load List==Pakiety: lista ładowania
-Packs: Loaded List==Pakiety: lista załadowanych
 #-----------------------------
 
 #File: IndexReIndexMonitor_p.html
@@ -4544,4 +4572,46 @@ Apps==Aplikacje
 Extended==Rozszerzone
 Strict==Ścisłe
 Location==Lokalizacja
+#-----------------------------
+
+#File: env/templates/importStatus.template
+Loading import status...==Ładowanie stanu importu...
+#---------------------------
+Reading 100% does not finish the import. Index submissions can replace existing documents.==Odczytanie 100% nie kończy importu. Dokumenty przekazane do indeksu mogą zastąpić istniejące dokumenty.
+Recent errors (up to 10 groups; location of last occurrence):==Ostatnie błędy (do 10 grup; pozycja ostatniego wystąpienia):
+Status unavailable; displayed values may be outdated.==Stan niedostępny; wyświetlane wartości mogą być nieaktualne.
+Enable JavaScript for live import monitoring.==Włącz JavaScript, aby monitorować import na żywo.
+No JSON import has run since startup.==Od uruchomienia nie wykonano importu JSON.
+No progress for at least 60 seconds.==Brak postępu od co najmniej 60 sekund.
+Stop after queued documents==Zatrzymaj po dokumentach w kolejce
+Estimated read time left:==Szacowany pozostały czas odczytu:
+Seconds since progress:==Sekundy od ostatniego postępu:
+Submitted to index:==Przekazane do indeksu:
+JSON / Pack Import==Import JSON / Pack
+Not yet available==Jeszcze niedostępne
+Documents read:==Odczytane dokumenty:
+Ignored fields:==Zignorowane pola:
+Busy workers:==Zajęte wątki:
+Documents/s:==Dokumenty/s:
+Occurrences==Wystąpienia
+File read:==Odczyt pliku:
+Skipped:==Pominięte:
+Elapsed:==Czas trwania:
+Document==Dokument
+Errors:==Błędy:
+Queue:==Kolejka:
+Error==Błąd
+Line==Wiersz
+#-----------------------------
+
+#File: env/templates/importStates.template
+#---------------------------
+Stopping; processing queued documents==Zatrzymywanie; przetwarzanie dokumentów w kolejce
+Import completed with errors==Import zakończony z błędami
+Processing last documents==Przetwarzanie ostatnich dokumentów
+Preparing import==Przygotowanie importu
+Import completed==Import zakończony
+Import running==Import trwa
+Import aborted==Import przerwany
+Import failed==Import nieudany
 #-----------------------------

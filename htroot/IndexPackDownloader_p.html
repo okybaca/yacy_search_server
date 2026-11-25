@@ -1,30 +1,78 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "DTD/xhtml1-transitional.dtd">
 <!-- This page is only XHTML 1.0 Transitional because target is being used in a links -->
 <html xmlns="http://www.w3.org/1999/xhtml">
-#(reload)#::<meta http-equiv="REFRESH" content="5; url=/IndexPackDownloader_p.html">#(/reload)#
   <head>
     <title>YaCy '#[clientname]#': Index Pack Downloader</title>
     #%env/templates/metas.template%#
+    <script src="js/pack-downloader.js" defer="defer"></script>
   </head>
   <body id="IndexControl">
     #%env/templates/header.template%#
     #%env/templates/submenuIndexImport.template%#
 
-    <h2>YaCy Pack Downloader</h2>
+    <div id="pack-downloader">
+      <h2>YaCy Pack Downloader</h2>
+      <p>First download a pack. Then open Pack Manager and select load to import it into the index.</p>
 
+      <div id="pack-download-running" class="alert alert-info" role="status" tabindex="-1" hidden="hidden">
+        <strong id="pack-downloading-label">Downloading...</strong> <span id="pack-downloading-file"></span>
+        <p>Large packs can take several minutes. Keep this page open until completion.</p>
+        <progress aria-labelledby="pack-downloading-label" style="width: 100%;"></progress>
+      </div>
+      <div id="pack-download-uncertain" class="alert alert-warning" role="alert" tabindex="-1" hidden="hidden">
+        <strong>Download status unavailable.</strong>
+        <p>The transfer may still be running. Check Pack Manager before retrying.</p>
+        <a class="btn btn-primary" href="IndexPackManager_p.html">View in Pack Manager</a>
+      </div>
+      #(download-complete)#::
+      <div id="pack-download-complete" class="alert alert-success" role="status" tabindex="-1">
+        <strong>Download completed:</strong> #[file]#
+        <p>Next step: open Pack Manager and select load beside this pack to import it into the index.</p>
+        <a class="btn btn-primary" href="IndexPackManager_p.html">Import in Pack Manager</a>
+      </div>
+      #(/download-complete)#
+      #(download-error)#::
+      <div id="pack-download-error" class="alert alert-danger" role="alert" tabindex="-1"><strong>Download failed:</strong> #[message]#</div>
+      #(/download-error)#
+      <noscript><p>Large packs can take several minutes. Keep this page open until completion.</p></noscript>
 
-    <fieldset><legend>Available Packs</legend>
+      <fieldset id="available-packs"><legend>Available Packs</legend>
         <table class="table table-striped" summary="Packs: Download Sources">
-            <thead class="thead-dark">
-            <tr class="TableHeader"><th width="120">Source</th><th width="360">Repo ID</th><th width="720">File</th><th width="360">Process</th></tr>
-            </thead>
-            <tbody>
-        #{packs-source}#
-            <tr class="TableCell#(dark)#Light::Dark#(/dark)#"><td>#[source]#</td><td><a href="#[repourl]#" target="_blank">#[repoid]#</a></td><td>#[file]#</td><td>#[process]#</td></tr>
-        #{/packs-source}#
-            </tbody>
+          <thead class="thead-dark">
+            <tr class="TableHeader"><th width="120">Source</th><th width="360">Repo ID</th><th width="720">File</th><th class="text-end">Download size</th><th width="360">Process</th></tr>
+          </thead>
+          <tbody>
+            #{packs-source}#
+            <tr class="TableCell#(dark)#Light::Dark#(/dark)#">
+              <td>#[source]#</td><td><a href="#[repourl]#" target="_blank">#[repoid]#</a></td><td>#[file]#</td>
+              <td class="text-end">#(size)#Unknown::<span title="#[bytes]# B">#[value]# #[unit]#</span>#(/size)#</td>
+              <td>
+                #(state)#
+                <form class="pack-download-form" action="IndexPackDownloader_p.html" method="post">
+                  <input type="hidden" name="dlsource" value="Huggingface" />
+                  <input type="hidden" name="dlrepoid" value="#[repoid]#" />
+                  <input type="hidden" name="dlfile" value="#[file]#" />
+                  <button class="btn btn-primary" type="submit">Download</button>
+                </form>
+                ::
+                <p>Downloaded; ready to import.</p>
+                <a class="btn btn-primary" href="IndexPackManager_p.html">Import in Pack Manager</a>
+                ::
+                <p>Queued or importing.</p>
+                <a href="IndexPackManager_p.html">View in Pack Manager</a>
+                ::
+                <p>Pack processed.</p>
+                <a href="IndexPackManager_p.html">View in Pack Manager</a>
+                ::
+                <p>Stored locally.</p>
+                #(/state)#
+              </td>
+            </tr>
+            #{/packs-source}#
+          </tbody>
         </table>
-    </fieldset>
+      </fieldset>
+    </div>
 
     #%env/templates/footer.template%#
   </body>

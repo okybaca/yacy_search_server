@@ -24,12 +24,11 @@ package net.yacy.htroot;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.HashMap;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
 import net.yacy.cora.protocol.RequestHeader;
-import net.yacy.kelondro.util.FileUtils;
 import net.yacy.kelondro.util.HFClient;
 import net.yacy.search.Switchboard;
 import net.yacy.server.serverObjects;
@@ -37,75 +36,91 @@ import net.yacy.server.serverSwitch;
 
 public class IndexPackDownloader_p {
 
+    private static final String[] SIZE_UNITS = {"B", "KiB", "MiB", "GiB", "TiB"};
+
     public static serverObjects respond(@SuppressWarnings("unused") final RequestHeader header, final serverObjects post, final serverSwitch env) {
-        // return variable that accumulates replacements
         final Switchboard sb = (Switchboard) env;
         final serverObjects prop = new serverObjects();
+        prop.put("download-complete", 0);
+        prop.put("download-error", 0);
 
         if (post != null) {
             final String dlsource = post.get("dlsource", "");
             final String dlrepoid = post.get("dlrepoid", "");
             final String dlfile = post.get("dlfile", "");
 
-            if (!dlsource.isEmpty() && !dlrepoid.isEmpty() && !dlfile.isEmpty()) {
-                if (dlsource.equals("Huggingface")) {
-                    try {
-                        final byte[] b = HFClient.downloadFile(dlrepoid, dlfile);
-                        if (b == null || b.length == 0) throw new IOException("downloaded file is empty");
-                        // save the file to the hold directory
-                        final File holdFile = new File(sb.packsHoldPath, dlfile);
-                        if (!holdFile.getParentFile().exists()) holdFile.getParentFile().mkdirs();
-                        FileUtils.copy(b, holdFile);
-                        prop.put("reload", 1);
-                    } catch (final Exception e) {
-                        sb.log.warn("error downloading from HuggingFace: " + e.getMessage(), e);
+            if ("Huggingface".equals(dlsource) && !dlrepoid.isEmpty() && !dlfile.isEmpty()) {
+                try {
+                    final File holdFile = new File(sb.packsHoldPath, dlfile).getCanonicalFile();
+                    if (!holdFile.toPath().startsWith(sb.packsHoldPath.getCanonicalFile().toPath())) {
+                        throw new IOException("pack destination must be inside the hold directory");
                     }
+                    HFClient.downloadFile(dlrepoid, dlfile, holdFile);
+                    prop.put("download-complete", 1);
+                    prop.putHTML("download-complete_file", dlfile);
+                } catch (final IOException e) {
+                    sb.log.warn("error downloading from HuggingFace: " + e.getMessage(), e);
+                    prop.put("download-error", 1);
+                    prop.putHTML("download-error_message", e.getMessage());
                 }
             }
         }
 
-        // set default values
-        prop.put("reload", 0);
-
-
-        // show Pack folder contents
+        // List remote packs and their local import state.
         int i = 0; boolean dark = true;
-        Map<String, List<String>> hfmap;
+        Map<String, List<HFClient.FileMetadata>> hfmap;
         try {
-            hfmap = HFClient.getAllPacks(true);
-        } catch (IOException|InterruptedException e) {
-            hfmap = new HashMap<>();
+            hfmap = HFClient.getAllPacksWithMetadata(true);
+        } catch (final IOException e) {
+            hfmap = Collections.emptyMap();
+        } catch (final InterruptedException e) {
+            Thread.currentThread().interrupt();
+            hfmap = Collections.emptyMap();
         }
         final Map<String, String> packsMap = sb.packsMap();
-        for (final Map.Entry<String, List<String>> entry : hfmap.entrySet()) {
+        for (final Map.Entry<String, List<HFClient.FileMetadata>> entry : hfmap.entrySet()) {
             final String repoid = entry.getKey();
-            final List<String> files = entry.getValue();
-            for (final String file: files) {
-                // skip empty files
+            for (final HFClient.FileMetadata metadata : entry.getValue()) {
+                final String file = metadata.path();
+                // Skip entries without a filename.
                 if (file == null || file.isEmpty()) continue;
                 prop.put("packs-source_" + i + "_source", "Huggingface");
-                prop.put("packs-source_" + i + "_repoid", repoid);
-                prop.put("packs-source_" + i + "_repourl", "https://huggingface.co/datasets/" + repoid);
-                prop.put("packs-source_" + i + "_file", file);
-                final String localPath = packsMap.get(file);
-                if (localPath == null) {
-                    prop.put("packs-source_" + i + "_process",
-                        "<a class=\"btn btn-primary\" href=\"IndexPackDownloader_p.html?dlsource=Huggingface&dlrepoid=" + repoid + "&dlfile=" + file + "\" role=\"button\">download</a>"
-                    );
-                } else {
-                    prop.put("packs-source_" + i + "_process",
-                        "file is downloaded; location: " + localPath
-                    );
+                prop.putHTML("packs-source_" + i + "_repoid", repoid);
+                prop.putHTML("packs-source_" + i + "_repourl", "https://huggingface.co/datasets/" + repoid);
+                prop.putHTML("packs-source_" + i + "_file", file);
+                final String sizePrefix = "packs-source_" + i + "_size";
+                prop.put(sizePrefix, metadata.size() >= 0);
+                if (metadata.size() >= 0) {
+                    double value = metadata.size();
+                    int unit = 0;
+                    while (value >= 1024 && unit < SIZE_UNITS.length - 1) {
+                        value /= 1024;
+                        unit++;
+                    }
+                    prop.put(sizePrefix + "_bytes", metadata.size());
+                    if (unit == 0) prop.put(sizePrefix + "_value", metadata.size());
+                    else prop.putNum(sizePrefix + "_value", value);
+                    prop.put(sizePrefix + "_unit", SIZE_UNITS[unit]);
                 }
-                prop.put("packs_source" + i + "_dark", dark ? "1" : "0");
+                final String localPath = packsMap.get(file);
+                final int state = localPath == null ? 0 : switch (localPath) {
+                    case "hold" -> 1;
+                    case "load" -> 2;
+                    case "loaded" -> 3;
+                    default -> 4;
+                };
+                prop.put("packs-source_" + i + "_state", state);
+                if (state == 0) {
+                    prop.putHTML("packs-source_" + i + "_state_repoid", repoid);
+                    prop.putHTML("packs-source_" + i + "_state_file", file);
+                }
+                prop.put("packs-source_" + i + "_dark", dark ? "1" : "0");
                 i++;
                 dark = !dark;
             }
         }
         prop.put("packs-source", i);
 
-
-        // return rewrite properties
         return prop;
     }
 

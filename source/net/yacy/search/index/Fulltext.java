@@ -88,6 +88,7 @@ import net.yacy.search.schema.WebgraphSchema;
 
 public final class Fulltext {
 
+    private static final ConcurrentLog LOG = new ConcurrentLog("Fulltext");
     private static final String SOLR_PATH = "solr_9_0"; // the number should be identical to the number in the property luceneMatchVersion in solrconfig.xml
     private static final String SOLR_OLD_PATH[] = new String[]{
             "solr_36", "solr_40", "solr_44", "solr_45", "solr_46", "solr_47",
@@ -375,7 +376,7 @@ public final class Fulltext {
 
     public void putDocument(final SolrInputDocument doc) throws IOException {
         final SolrConnector connector = this.getDefaultConnector();
-        if (connector == null || connector.isClosed()) return;
+        if (connector == null || connector.isClosed()) throw new IOException("Solr connector is unavailable or closed");
         final String id = (String) doc.getFieldValue(CollectionSchema.id.getSolrFieldName());
         final String url = (String) doc.getFieldValue(CollectionSchema.sku.getSolrFieldName());
         final String host = (String) doc.getFieldValue(CollectionSchema.host_s.getSolrFieldName());
@@ -390,8 +391,10 @@ public final class Fulltext {
                     " durationMs=" + (System.currentTimeMillis() - start));
             throw new IOException(e.getMessage(), e);
         }
-        ConcurrentLog.info("Fulltext", "event=index.document subsystem=index result=queued id=" + id +
-                " url=" + url + " host=" + host + " status=" + httpStatus + " durationMs=" + (System.currentTimeMillis() - start));
+        if (LOG.isFine()) {
+            LOG.fine("event=index.document subsystem=index result=queued id=" + id +
+                    " url=" + url + " host=" + host + " status=" + httpStatus + " durationMs=" + (System.currentTimeMillis() - start));
+        }
         if (MemoryControl.shortStatus()) this.clearCaches();
     }
 
@@ -406,8 +409,10 @@ public final class Fulltext {
                     " reason=" + e.getMessage() + " durationMs=" + (System.currentTimeMillis() - start));
             throw new IOException(e.getMessage(), e);
         }
-        ConcurrentLog.info("Fulltext", "event=index.webgraph subsystem=index result=queued count=" + edges.size() +
-                " durationMs=" + (System.currentTimeMillis() - start));
+        if (LOG.isFine()) {
+            LOG.fine("event=index.webgraph subsystem=index result=queued count=" + edges.size() +
+                    " durationMs=" + (System.currentTimeMillis() - start));
+        }
         if (MemoryControl.shortStatus()) this.clearCaches();
     }
 

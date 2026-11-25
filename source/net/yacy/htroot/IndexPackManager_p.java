@@ -23,16 +23,21 @@
 package net.yacy.htroot;
 
 import java.io.File;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import net.yacy.cora.protocol.RequestHeader;
+import net.yacy.document.importer.JsonListImporter;
 import net.yacy.search.Switchboard;
 import net.yacy.server.serverObjects;
 import net.yacy.server.serverSwitch;
 
 public class IndexPackManager_p {
 
-    public static serverObjects respond(@SuppressWarnings("unused") final RequestHeader header, final serverObjects post, final serverSwitch env) {
-        // return variable that accumulates replacements
+    public static serverObjects respond(final RequestHeader header, final serverObjects post, final serverSwitch env) {
         final Switchboard sb = (Switchboard) env;
         final serverObjects prop = new serverObjects();
 
@@ -57,20 +62,26 @@ public class IndexPackManager_p {
             }
         }
 
-        // set default values
-        prop.put("reload", 0);
+        final JsonListImporter importer = JsonListImporter.job;
+        JSONObject importStatus = null;
+        if (importer != null) {
+            try {
+                importStatus = importer.snapshot();
+            } catch (final JSONException e) {
+                sb.log.warn("Could not read JSON import status: " + e.getMessage());
+            }
+        }
 
-
-        // show Pack folder contents
+        // Show pack folders, with an initial progress snapshot for the active JSON pack.
         int i = 0; boolean dark = true;
         for (final String file: sb.packsInHold()) {
-            prop.put("packs-hold_" + i + "_file", file);
+            prop.putHTML("packs-hold_" + i + "_file", file);
             prop.put("packs-hold_" + i + "_size", new File(sb.packsHoldPath, file).length() / 1024);
             prop.put("packs-hold_" + i + "_process",
-                "<a class=\"btn btn-primary\" href=\"IndexPackManager_p.html?mvfrom=hold&mvto=load&file=" + file + "\" role=\"button\">load</a>&nbsp;" +
-                "<a class=\"btn btn-primary\" href=\"IndexPackManager_p.html?delete=1&file=" + file + "\" role=\"button\">delete</a>"
+                "<a class=\"btn btn-primary\" href=\"IndexPackManager_p.html?mvfrom=hold&mvto=load&file=" + URLEncoder.encode(file, StandardCharsets.UTF_8) + "\" role=\"button\">load</a>&nbsp;" +
+                "<a class=\"btn btn-primary\" href=\"IndexPackManager_p.html?delete=1&file=" + URLEncoder.encode(file, StandardCharsets.UTF_8) + "\" role=\"button\">delete</a>"
             );
-            prop.put("packs_hold" + i + "_dark", dark ? "1" : "0");
+            prop.put("packs-hold_" + i + "_dark", dark ? "1" : "0");
             i++;
             dark = !dark;
         }
@@ -84,9 +95,38 @@ public class IndexPackManager_p {
         prop.put("packs-hold", i);
         i = 0; dark = true;
         for (final String file: sb.packsInLoad()) {
-            prop.put("packs-load_" + i + "_file", file);
+            prop.putHTML("packs-load_" + i + "_file", file);
             prop.put("packs-load_" + i + "_size", new File(sb.packsLoadPath, file).length() / 1024);
-            prop.put("packs-load_" + i + "_process", "");
+            final String progressPrefix = "packs-load_" + i + "_json_";
+            final boolean jsonPack = file.endsWith(".jsonl") || file.endsWith(".jsonl.gz")
+                    || file.endsWith(".jsonlist") || file.endsWith(".jsonlist.gz")
+                    || file.endsWith(".flatjson") || file.endsWith(".flatjson.gz");
+            prop.put("packs-load_" + i + "_json", jsonPack);
+            if (jsonPack) {
+                final boolean sourceMatches = importer != null && importer.isSourceFile(new File(sb.packsLoadPath, file));
+                final boolean active = sourceMatches && importStatus != null && importStatus.optBoolean("active");
+                final int phase;
+                if (active) {
+                    phase = switch (importStatus.optString("state")) {
+                        case "DRAINING" -> 2;
+                        case "STOPPING" -> 3;
+                        default -> 1;
+                    };
+                } else if (sourceMatches && importer.isActive() && importStatus == null) {
+                    phase = 4;
+                } else {
+                    phase = 0;
+                }
+                final long total = active ? importStatus.optLong("totalBytes") : 0;
+                final double percent = total > 0 ? Math.min(100, importStatus.optLong("bytesRead") * 100.0 / total) : 0;
+                prop.put(progressPrefix + "phase", phase);
+                prop.put(progressPrefix + "active", active);
+                prop.put(progressPrefix + "job", active ? importer.getJobId() : "");
+                prop.put(progressPrefix + "percent", Double.toString(percent));
+                prop.putNum(progressPrefix + "percent-label", percent);
+                prop.putNum(progressPrefix + "submitted", active ? importStatus.optLong("submitted") : 0);
+                prop.putNum(progressPrefix + "speed", active ? importStatus.optDouble("documentsPerSecond") : 0);
+            }
             prop.put("packs-load_" + i + "_dark", dark ? "1" : "0");
             i++;
             dark = !dark;
@@ -94,19 +134,16 @@ public class IndexPackManager_p {
         if (i == 0) {
             prop.put("packs-load_0_file", "&lt;no packs in load&gt;");
             prop.put("packs-load_0_size", "");
-            prop.put("packs-load_0_process", "");
+            prop.put("packs-load_0_json", 2);
             prop.put("packs-load_0_dark", true);
             i = 1;
-        } else {
-            // while packs are loaded, we reload the interface to refresh the pack list constantly
-            prop.put("reload", 1);
         }
         prop.put("packs-load", i);
         i = 0; dark = true;
         for (final String file: sb.packsInLoaded()) {
-            prop.put("packs-loaded_" + i + "_file", file);
+            prop.putHTML("packs-loaded_" + i + "_file", file);
             prop.put("packs-loaded_" + i + "_size", new File(sb.packsLoadedPath, file).length() / 1024);
-            prop.put("packs-loaded_" + i + "_process", "<a class=\"btn btn-primary\" href=\"IndexPackManager_p.html?mvfrom=loaded&mvto=hold&file=" + file + "\" role=\"button\">to: hold</a>");
+            prop.put("packs-loaded_" + i + "_process", "<a class=\"btn btn-primary\" href=\"IndexPackManager_p.html?mvfrom=loaded&mvto=hold&file=" + URLEncoder.encode(file, StandardCharsets.UTF_8) + "\" role=\"button\">to: hold</a>");
             prop.put("packs-loaded_" + i + "_dark", dark ? "1" : "0");
             i++;
             dark = !dark;
@@ -120,7 +157,6 @@ public class IndexPackManager_p {
         }
         prop.put("packs-loaded", i);
 
-        // return rewrite properties
         return prop;
     }
 

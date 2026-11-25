@@ -2775,6 +2775,7 @@ write-enabled (if unchecked, the remote server(s) will only be used as search pe
 #-----------------------------
 
 #File: IndexImportJsonList_p.html
+Server file:==Fichier du serveur :
 #---------------------------
 File:==Fichier:
 "Import JsonList File"=="Importer le fichier JsonList"
@@ -3742,12 +3743,29 @@ or==ou
 
 #File: IndexPackDownloader_p.html
 #---------------------------
+First download a pack. Then open Pack Manager and select load to import it into the index.==Téléchargez d’abord un paquet. Ouvrez ensuite Pack Manager et choisissez load pour l’importer dans l’index.
+Next step: open Pack Manager and select load beside this pack to import it into the index.==Étape suivante : Ouvrez Pack Manager et choisissez load à côté de ce paquet pour l’importer dans l’index.
+Large packs can take several minutes. Keep this page open until completion.==Les gros paquets peuvent prendre plusieurs minutes. Gardez cette page ouverte jusqu’à la fin.
+The transfer may still be running. Check Pack Manager before retrying.==Le transfert est peut-être encore en cours. Vérifiez Pack Manager avant de réessayer.
+Download status unavailable.==État du téléchargement indisponible.
+Downloaded; ready to import.==Téléchargé ; prêt à importer.
+Import in Pack Manager==Importer dans Pack Manager
+YaCy Pack Downloader==Téléchargement de YaCy Pack
+View in Pack Manager==Voir dans Pack Manager
+Queued or importing.==En attente ou en cours d’import.
+Download completed:==Téléchargement terminé :
+Download failed:==Échec du téléchargement :
 Available Packs==Emballages disponibles
-File==Fichier
+Pack processed.==Paquet traité.
+Stored locally.==Stocké localement.
+Downloading...==Téléchargement en cours...
+Download size==Taille du téléchargement
+>Download<==>Télécharger<
+Unknown==Inconnue
 Process==Processus
 Repo ID==Numéro d'identification de la demande de remboursement
 Source==Source
-YaCy Pack Downloader==Téléchargement de YaCy Pack
+File==Fichier
 #-----------------------------
 
 #File: IndexPackGenerator_p.html
@@ -3793,13 +3811,23 @@ vault - sensitive data: secrets, leaks, non-public documents, security advisorie
 
 #File: IndexPackManager_p.html
 #---------------------------
-Pack Folders==Dossiers de packs
+Status unavailable; displayed values may be outdated.==État indisponible ; les valeurs affichées peuvent être périmées.
+Stopping; processing queued documents==Arrêt ; traitement des documents en attente
+Processing last documents==Traitement des derniers documents
+Queued or processing.==En attente ou en cours de traitement.
+View import activity==Voir l’activité d’importation
+Waiting for import.==En attente d’importation.
+Submitted to index:==Transmis à l’index :
+Packs: Loaded List==Emballages: Liste des chargements
+YaCy Pack Manager==Gestionnaire de paquets YaCy
 Packs: Hold List==Boîtes: tenir la liste
 Packs: Load List==Emballages: Liste des chargements
-Packs: Loaded List==Emballages: Liste des chargements
-Process==Processus
+Import running==Import en cours
+Pack Folders==Dossiers de packs
+Documents/s:==Documents/s :
+File read:==Fichier lu :
 Size (KB)==Taille (Ko)
-YaCy Pack Manager==Gestionnaire de paquets YaCy
+Process==Processus
 #-----------------------------
 
 #File: LLMSelection_p.html
@@ -4562,4 +4590,46 @@ YaCy System Terminal Monitor==Moniteur terminal du système YaCy
 "Previous page"=="Page précédente"
 &laquo;==&laquo;
 &raquo;==&raquo;
+#-----------------------------
+
+#File: env/templates/importStatus.template
+Loading import status...==Chargement de l’état de l’import...
+#---------------------------
+Reading 100% does not finish the import. Index submissions can replace existing documents.==La lecture à 100% ne termine pas l’import. Les transmissions à l’index peuvent remplacer des documents existants.
+Recent errors (up to 10 groups; location of last occurrence):==Erreurs récentes (jusqu’à 10 groupes ; position de la dernière occurrence) :
+Status unavailable; displayed values may be outdated.==État indisponible ; les valeurs affichées peuvent être périmées.
+Enable JavaScript for live import monitoring.==Activez JavaScript pour suivre l’import en direct.
+No JSON import has run since startup.==Aucun import JSON n’a été exécuté depuis le démarrage.
+No progress for at least 60 seconds.==Aucune progression depuis au moins 60 secondes.
+Stop after queued documents==Arrêter après les documents en attente
+Estimated read time left:==Temps de lecture restant estimé :
+Seconds since progress:==Secondes depuis la progression :
+Submitted to index:==Transmis à l’index :
+JSON / Pack Import==Import JSON / Pack
+Not yet available==Pas encore disponible
+Documents read:==Documents lus :
+Ignored fields:==Champs ignorés :
+Busy workers:==Threads occupés :
+Documents/s:==Documents/s :
+Occurrences==Occurrences
+File read:==Fichier lu :
+Skipped:==Ignorés :
+Elapsed:==Temps écoulé :
+Document==Document
+Errors:==Erreurs :
+Queue:==File d’attente :
+Error==Erreur
+Line==Ligne
+#-----------------------------
+
+#File: env/templates/importStates.template
+#---------------------------
+Stopping; processing queued documents==Arrêt ; traitement des documents en attente
+Import completed with errors==Import terminé avec des erreurs
+Processing last documents==Traitement des derniers documents
+Preparing import==Préparation de l’import
+Import completed==Import terminé
+Import running==Import en cours
+Import aborted==Import interrompu
+Import failed==Échec de l’import
 #-----------------------------

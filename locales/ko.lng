@@ -1815,6 +1815,7 @@ comma-separated (default: 404,410,-1; -1=DNS/network errors)==쉼표로 구분�
 #-----------------------------
 
 #File: IndexImportJsonList_p.html
+Server file:==서버 파일:
 #---------------------------
 "Import JsonList File"=="JsonList 파일 가져오기"
 "Stop"=="멈추다"
@@ -1935,12 +1936,29 @@ Remaining Time:==남은 시간:
 
 #File: IndexPackDownloader_p.html
 #---------------------------
+First download a pack. Then open Pack Manager and select load to import it into the index.==먼저 팩을 다운로드하세요. 그런 다음 Pack Manager를 열고 load를 선택하여 색인으로 가져오세요.
+Next step: open Pack Manager and select load beside this pack to import it into the index.==다음 단계: Pack Manager를 열고 이 팩 옆의 load를 선택하여 색인으로 가져오세요.
+Large packs can take several minutes. Keep this page open until completion.==큰 팩은 몇 분이 걸릴 수 있습니다. 완료될 때까지 이 페이지를 열어 두세요.
+The transfer may still be running. Check Pack Manager before retrying.==전송이 아직 진행 중일 수 있습니다. 다시 시도하기 전에 Pack Manager를 확인하세요.
+Download status unavailable.==다운로드 상태를 확인할 수 없습니다.
+Downloaded; ready to import.==다운로드됨, 가져올 준비가 되었습니다.
+Import in Pack Manager==Pack Manager에서 가져오기
 YaCy Pack Downloader==YaCy 팩 다운로더
+View in Pack Manager==Pack Manager에서 보기
+Queued or importing.==대기 중이거나 가져오는 중입니다.
+Download completed:==다운로드 완료:
+Download failed:==다운로드 실패:
 Available Packs==사용 가능한 팩
-Source==원천
+Pack processed.==팩 처리가 완료되었습니다.
+Stored locally.==로컬에 저장됨.
+Downloading...==다운로드 중...
+Download size==다운로드 크기
+>Download<==>다운로드<
+Unknown==알 수 없음
 Repo ID==저장소 ID
-File==파일
 Process==프로세스
+Source==원천
+File==파일
 #-----------------------------
 
 #File: IndexPackGenerator_p.html
@@ -1986,13 +2004,23 @@ Size (KB)==크기(KB)
 
 #File: IndexPackManager_p.html
 #---------------------------
+Status unavailable; displayed values may be outdated.==상태를 가져올 수 없습니다. 표시된 값이 오래되었을 수 있습니다.
+Stopping; processing queued documents==중지 중, 대기 중인 문서 처리 중
+Processing last documents==마지막 문서 처리 중
+Queued or processing.==대기 중이거나 처리 중입니다.
+View import activity==가져오기 활동 보기
+Waiting for import.==가져오기 대기 중.
+Submitted to index:==색인에 전달:
+Packs: Loaded List==팩: 로드된 목록
 YaCy Pack Manager==YaCy 팩 관리자
-Pack Folders==팩 폴더
 Packs: Hold List==팩: 보류 목록
+Packs: Load List==팩: 로드 목록
+Import running==가져오기 실행 중
+Pack Folders==팩 폴더
+Documents/s:==문서/초:
+File read:==파일 읽기:
 Size (KB)==크기(KB)
 Process==프로세스
-Packs: Load List==팩: 로드 목록
-Packs: Loaded List==팩: 로드된 목록
 #-----------------------------
 
 #File: IndexReIndexMonitor_p.html
@@ -4529,4 +4557,46 @@ Apps==앱
 Extended==펼친
 Strict==엄격한
 Location==위치
+#-----------------------------
+
+#File: env/templates/importStatus.template
+Loading import status...==가져오기 상태를 불러오는 중...
+#---------------------------
+Reading 100% does not finish the import. Index submissions can replace existing documents.==100%를 읽어도 가져오기가 완료되지는 않습니다. 색인에 전달한 문서는 기존 문서를 대체할 수 있습니다.
+Recent errors (up to 10 groups; location of last occurrence):==최근 오류(최대 10개 그룹, 마지막 발생 위치):
+Status unavailable; displayed values may be outdated.==상태를 가져올 수 없습니다. 표시된 값이 오래되었을 수 있습니다.
+Enable JavaScript for live import monitoring.==실시간 가져오기 모니터링을 위해 JavaScript를 활성화하세요.
+No JSON import has run since startup.==시작 이후 실행된 JSON 가져오기가 없습니다.
+No progress for at least 60 seconds.==최소 60초 동안 진행이 없습니다.
+Stop after queued documents==대기 중인 문서 처리 후 중지
+Estimated read time left:==예상 남은 읽기 시간:
+Seconds since progress:==마지막 진행 이후 초:
+Submitted to index:==색인에 전달:
+JSON / Pack Import==JSON / Pack 가져오기
+Not yet available==아직 사용할 수 없음
+Documents read:==읽은 문서:
+Ignored fields:==무시한 필드:
+Busy workers:==처리 중인 스레드:
+Documents/s:==문서/초:
+Occurrences==발생 횟수
+File read:==파일 읽기:
+Skipped:==건너뜀:
+Elapsed:==경과 시간:
+Document==문서
+Errors:==오류:
+Queue:==대기열:
+Error==오류
+Line==줄
+#-----------------------------
+
+#File: env/templates/importStates.template
+#---------------------------
+Stopping; processing queued documents==중지 중, 대기 중인 문서 처리 중
+Import completed with errors==오류와 함께 가져오기 완료
+Processing last documents==마지막 문서 처리 중
+Preparing import==가져오기 준비 중
+Import completed==가져오기 완료
+Import running==가져오기 실행 중
+Import aborted==가져오기 중단됨
+Import failed==가져오기 실패
 #-----------------------------

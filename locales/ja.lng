@@ -1820,6 +1820,7 @@ comma-separated (default: 404,410,-1; -1=DNS/network errors)==カンマ区切り
 #-----------------------------
 
 #File: IndexImportJsonList_p.html
+Server file:==サーバー上のファイル:
 #---------------------------
 "Import JsonList File"=="JsonListファイルをインポートする"
 "Stop"=="停止"
@@ -1940,12 +1941,29 @@ Remaining Time:==残り時間:
 
 #File: IndexPackDownloader_p.html
 #---------------------------
+First download a pack. Then open Pack Manager and select load to import it into the index.==まずパックをダウンロードしてください。その後 Pack Manager を開き、load を選択してインデックスにインポートしてください。
+Next step: open Pack Manager and select load beside this pack to import it into the index.==次の手順: Pack Manager を開き、このパックの横の load を選択してインデックスにインポートしてください。
+Large packs can take several minutes. Keep this page open until completion.==大きなパックは数分かかる場合があります。完了するまでこのページを開いたままにしてください。
+The transfer may still be running. Check Pack Manager before retrying.==転送はまだ続いている可能性があります。再試行する前に Pack Manager を確認してください。
+Download status unavailable.==ダウンロード状態を取得できません。
+Downloaded; ready to import.==ダウンロード済み、インポートできます。
+Import in Pack Manager==Pack Manager でインポート
 YaCy Pack Downloader==YaCy パック ダウンローダー
+View in Pack Manager==Pack Manager で表示
+Queued or importing.==待機中またはインポート中。
+Download completed:==ダウンロード完了:
+Download failed:==ダウンロードに失敗しました:
 Available Packs==利用可能なパック
-Source==ソース
+Pack processed.==パックの処理が完了しました。
+Stored locally.==ローカルに保存済み。
+Downloading...==ダウンロード中...
+Download size==ダウンロードサイズ
+>Download<==>ダウンロード<
+Unknown==不明
 Repo ID==リポジトリID
-File==ファイル
 Process==プロセス
+Source==ソース
+File==ファイル
 #-----------------------------
 
 #File: IndexPackGenerator_p.html
@@ -1991,13 +2009,23 @@ Size (KB)==サイズ (KB)
 
 #File: IndexPackManager_p.html
 #---------------------------
+Status unavailable; displayed values may be outdated.==状態を取得できません。表示値が古い可能性があります。
+Stopping; processing queued documents==停止中、キュー内の文書を処理中
+Processing last documents==最後の文書を処理中
+Queued or processing.==待機中または処理中です。
+View import activity==インポートの状況を表示
+Waiting for import.==インポート待機中。
+Submitted to index:==インデックスに送信:
+Packs: Loaded List==パック: ロード済みリスト
 YaCy Pack Manager==YaCy パックマネージャー
-Pack Folders==フォルダーをパックする
 Packs: Hold List==パック: ホールドリスト
+Packs: Load List==パック: ロードリスト
+Import running==インポート実行中
+Pack Folders==フォルダーをパックする
+Documents/s:==文書/秒:
+File read:==ファイル読み込み:
 Size (KB)==サイズ (KB)
 Process==プロセス
-Packs: Load List==パック: ロードリスト
-Packs: Loaded List==パック: ロード済みリスト
 #-----------------------------
 
 #File: IndexReIndexMonitor_p.html
@@ -4534,4 +4562,46 @@ Apps==アプリ
 Extended==拡張された
 Strict==厳しい
 Location==位置
+#-----------------------------
+
+#File: env/templates/importStatus.template
+Loading import status...==インポート状態を読み込み中...
+#---------------------------
+Reading 100% does not finish the import. Index submissions can replace existing documents.==100% 読み込んでもインポートは完了していません。インデックスへの送信は既存の文書を置き換える場合があります。
+Recent errors (up to 10 groups; location of last occurrence):==最近のエラー（最大 10 グループ、最後の発生位置）:
+Status unavailable; displayed values may be outdated.==状態を取得できません。表示値が古い可能性があります。
+Enable JavaScript for live import monitoring.==インポートのライブ監視には JavaScript を有効にしてください。
+No JSON import has run since startup.==起動後に JSON インポートは実行されていません。
+No progress for at least 60 seconds.==60 秒以上進捗がありません。
+Stop after queued documents==キュー内の文書の処理後に停止
+Estimated read time left:==推定残り読み込み時間:
+Seconds since progress:==最後の進捗からの秒数:
+Submitted to index:==インデックスに送信:
+JSON / Pack Import==JSON / Pack インポート
+Not yet available==まだ取得できません
+Documents read:==読み込んだ文書:
+Ignored fields:==無視したフィールド:
+Busy workers:==処理中のスレッド:
+Documents/s:==文書/秒:
+Occurrences==発生回数
+File read:==ファイル読み込み:
+Skipped:==スキップ:
+Elapsed:==経過時間:
+Document==文書
+Errors:==エラー:
+Queue:==キュー:
+Error==エラー
+Line==行
+#-----------------------------
+
+#File: env/templates/importStates.template
+#---------------------------
+Stopping; processing queued documents==停止中、キュー内の文書を処理中
+Import completed with errors==エラーありでインポート完了
+Processing last documents==最後の文書を処理中
+Preparing import==インポートを準備中
+Import completed==インポート完了
+Import running==インポート実行中
+Import aborted==インポート中止
+Import failed==インポート失敗
 #-----------------------------

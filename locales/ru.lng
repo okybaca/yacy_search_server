@@ -3846,6 +3846,7 @@ Intention/Description==Намерение/Description
 Accept '?' URLs==Принимать '?' URL-адреса
 Remote crawl start points, finished:==Начальные точки удаленного сканирования, завершено:
 #File: IndexImportJsonList_p.html
+Server file:==Файл на сервере:
 #---------------------------
 File:==Файл:
 Import Process==Выполнение импорта
@@ -4152,12 +4153,29 @@ Import this file by moving it to DATA/PACKS/load==Импортируйте эт�
 
 #File: IndexPackDownloader_p.html
 #---------------------------
+First download a pack. Then open Pack Manager and select load to import it into the index.==Сначала скачайте пакет. Затем откройте Pack Manager и выберите load для импорта в индекс.
+Next step: open Pack Manager and select load beside this pack to import it into the index.==Следующий шаг: Откройте Pack Manager и выберите load рядом с этим пакетом для импорта в индекс.
+Large packs can take several minutes. Keep this page open until completion.==Скачивание больших пакетов может занять несколько минут. Держите эту страницу открытой до завершения.
+The transfer may still be running. Check Pack Manager before retrying.==Передача, возможно, ещё продолжается. Перед повторной попыткой проверьте Pack Manager.
+Download status unavailable.==Статус скачивания недоступен.
+Downloaded; ready to import.==Скачано; готово к импорту.
+Import in Pack Manager==Импортировать в Pack Manager
 YaCy Pack Downloader==YaCy Загрузчик пакетов
+View in Pack Manager==Просмотреть в Pack Manager
+Queued or importing.==В очереди или импортируется.
+Download completed:==Скачивание завершено:
+Download failed:==Ошибка скачивания:
 Available Packs==Доступные пакеты
-Source==Источник
+Pack processed.==Пакет обработан.
+Stored locally.==Сохранён локально.
+Downloading...==Скачивание...
+Download size==Размер загрузки
+>Download<==>Скачать<
+Unknown==Неизвестно
 Repo ID==Идентификатор репо
-File==Файл
 Process==Процесс
+Source==Источник
+File==Файл
 #-----------------------------
 
 #File: IndexPackGenerator_p.html
@@ -4203,13 +4221,23 @@ Size (KB)==Размер (КБ)
 
 #File: IndexPackManager_p.html
 #---------------------------
+Status unavailable; displayed values may be outdated.==Статус недоступен; показанные значения могут быть устаревшими.
+Stopping; processing queued documents==Остановка; обработка документов в очереди
+Processing last documents==Обработка последних документов
+Queued or processing.==В очереди или обрабатывается.
+View import activity==Просмотреть активность импорта
+Waiting for import.==Ожидание импорта.
+Submitted to index:==Передано в индекс:
+Packs: Loaded List==Пакеты: Загруженный список
 YaCy Pack Manager==YaCy Менеджер пакетов
-Pack Folders==Упаковать папки
 Packs: Hold List==Пакеты: Список удержания
+Packs: Load List==Пакеты: список загрузки
+Import running==Импорт выполняется
+Pack Folders==Упаковать папки
+Documents/s:==Документов/с:
+File read:==Прочитано из файла:
 Size (KB)==Размер (КБ)
 Process==Процесс
-Packs: Load List==Пакеты: список загрузки
-Packs: Loaded List==Пакеты: Загруженный список
 #-----------------------------
 
 #File: IndexShare_p.html
@@ -4632,4 +4660,46 @@ Show System==Показать систему
 "Next page"=="Следующая страница"
 &laquo;==&laquo;
 &raquo;==&raquo;
+#-----------------------------
+
+#File: env/templates/importStatus.template
+Loading import status...==Загрузка состояния импорта...
+#---------------------------
+Reading 100% does not finish the import. Index submissions can replace existing documents.==Чтение 100% не завершает импорт. Переданные в индекс документы могут заменить существующие.
+Recent errors (up to 10 groups; location of last occurrence):==Последние ошибки (до 10 групп; место последнего появления):
+Status unavailable; displayed values may be outdated.==Статус недоступен; показанные значения могут быть устаревшими.
+Enable JavaScript for live import monitoring.==Включите JavaScript для наблюдения за импортом.
+No JSON import has run since startup.==После запуска импорт JSON не выполнялся.
+No progress for at least 60 seconds.==Нет прогресса как минимум 60 секунд.
+Stop after queued documents==Остановить после документов в очереди
+Estimated read time left:==Оценка оставшегося времени чтения:
+Seconds since progress:==Секунд с последнего прогресса:
+Submitted to index:==Передано в индекс:
+JSON / Pack Import==Импорт JSON / Pack
+Not yet available==Пока недоступно
+Documents read:==Прочитано документов:
+Ignored fields:==Игнорируемые поля:
+Busy workers:==Занятые потоки:
+Documents/s:==Документов/с:
+Occurrences==Повторения
+File read:==Прочитано из файла:
+Skipped:==Пропущено:
+Elapsed:==Прошло времени:
+Document==Документ
+Errors:==Ошибки:
+Queue:==Очередь:
+Error==Ошибка
+Line==Строка
+#-----------------------------
+
+#File: env/templates/importStates.template
+#---------------------------
+Stopping; processing queued documents==Остановка; обработка документов в очереди
+Import completed with errors==Импорт завершён с ошибками
+Processing last documents==Обработка последних документов
+Preparing import==Подготовка импорта
+Import completed==Импорт завершён
+Import running==Импорт выполняется
+Import aborted==Импорт прерван
+Import failed==Сбой импорта
 #-----------------------------

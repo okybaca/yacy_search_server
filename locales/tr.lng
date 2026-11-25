@@ -1832,6 +1832,7 @@ comma-separated (default: 404,410,-1; -1=DNS/network errors)==virgülle ayrılm�
 #-----------------------------
 
 #File: IndexImportJsonList_p.html
+Server file:==Sunucu dosyası:
 #---------------------------
 "Import JsonList File"=="JsonList Dosyasını İçe Aktar"
 "Stop"=="Durmak"
@@ -1952,12 +1953,29 @@ Remaining Time:==Kalan Zaman:
 
 #File: IndexPackDownloader_p.html
 #---------------------------
+First download a pack. Then open Pack Manager and select load to import it into the index.==Önce bir paket indirin. Ardından Pack Manager’ı açıp dizine aktarmak için load seçeneğini kullanın.
+Next step: open Pack Manager and select load beside this pack to import it into the index.==Sonraki adım: Pack Manager’ı açın ve dizine aktarmak için bu paketin yanındaki load seçeneğini kullanın.
+Large packs can take several minutes. Keep this page open until completion.==Büyük paketler birkaç dakika sürebilir. Tamamlanana kadar bu sayfayı açık tutun.
+The transfer may still be running. Check Pack Manager before retrying.==Aktarım hâlâ devam ediyor olabilir. Yeniden denemeden önce Pack Manager’ı kontrol edin.
+Download status unavailable.==İndirme durumu alınamıyor.
+Downloaded; ready to import.==İndirildi; içe aktarmaya hazır.
+Import in Pack Manager==Pack Manager’da içe aktar
 YaCy Pack Downloader==YaCy Paket İndirici
+View in Pack Manager==Pack Manager’da görüntüle
+Queued or importing.==Kuyrukta veya içe aktarılıyor.
+Download completed:==İndirme tamamlandı:
+Download failed:==İndirme başarısız:
 Available Packs==Mevcut Paketler
-Source==Kaynak
+Pack processed.==Paket işlendi.
+Stored locally.==Yerel olarak kaydedildi.
+Downloading...==İndiriliyor...
+Download size==İndirme boyutu
+>Download<==>İndir<
+Unknown==Bilinmiyor
 Repo ID==Depo kimliği
-File==Dosya
 Process==İşlem
+Source==Kaynak
+File==Dosya
 #-----------------------------
 
 #File: IndexPackGenerator_p.html
@@ -2003,13 +2021,23 @@ Size (KB)==Boyut (KB)
 
 #File: IndexPackManager_p.html
 #---------------------------
+Status unavailable; displayed values may be outdated.==Durum alınamıyor; gösterilen değerler eski olabilir.
+Stopping; processing queued documents==Durduruluyor; kuyruktaki belgeler işleniyor
+Processing last documents==Son belgeler işleniyor
+Queued or processing.==Kuyrukta veya işleniyor.
+View import activity==İçe aktarma etkinliğini görüntüle
+Waiting for import.==İçe aktarma bekleniyor.
+Submitted to index:==Dizine gönderilen:
+Packs: Loaded List==Paketler: Yüklü Liste
 YaCy Pack Manager==YaCy Paket Yöneticisi
-Pack Folders==Klasörleri Paketle
 Packs: Hold List==Paketler: Bekletme Listesi
+Packs: Load List==Paketler: Yükleme Listesi
+Import running==İçe aktarma sürüyor
+Pack Folders==Klasörleri Paketle
+Documents/s:==Belge/sn:
+File read:==Okunan dosya:
 Size (KB)==Boyut (KB)
 Process==İşlem
-Packs: Load List==Paketler: Yükleme Listesi
-Packs: Loaded List==Paketler: Yüklü Liste
 #-----------------------------
 
 #File: IndexReIndexMonitor_p.html
@@ -4546,4 +4574,46 @@ Apps==Uygulamalar
 Extended==Uzatılmış
 Strict==Sıkı
 Location==Konum
+#-----------------------------
+
+#File: env/templates/importStatus.template
+Loading import status...==İçe aktarma durumu yükleniyor...
+#---------------------------
+Reading 100% does not finish the import. Index submissions can replace existing documents.==%100 okumak içe aktarmayı tamamlamaz. Dizine gönderimler mevcut belgelerin yerini alabilir.
+Recent errors (up to 10 groups; location of last occurrence):==Son hatalar (en fazla 10 grup; son oluşumun konumu):
+Status unavailable; displayed values may be outdated.==Durum alınamıyor; gösterilen değerler eski olabilir.
+Enable JavaScript for live import monitoring.==Canlı içe aktarma takibi için JavaScript'i etkinleştirin.
+No JSON import has run since startup.==Başlatmadan bu yana JSON içe aktarma yapılmadı.
+No progress for at least 60 seconds.==En az 60 saniyedir ilerleme yok.
+Stop after queued documents==Kuyruktaki belgelerden sonra durdur
+Estimated read time left:==Tahmini kalan okuma süresi:
+Seconds since progress:==Son ilerlemeden beri saniye:
+Submitted to index:==Dizine gönderilen:
+JSON / Pack Import==JSON / Pack İçe Aktarma
+Not yet available==Henüz kullanılamıyor
+Documents read:==Okunan belgeler:
+Ignored fields:==Yok sayılan alanlar:
+Busy workers:==Meşgul iş parçacıkları:
+Documents/s:==Belge/sn:
+Occurrences==Oluşumlar
+File read:==Okunan dosya:
+Skipped:==Atlanan:
+Elapsed:==Geçen süre:
+Document==Belge
+Errors:==Hatalar:
+Queue:==Kuyruk:
+Error==Hata
+Line==Satır
+#-----------------------------
+
+#File: env/templates/importStates.template
+#---------------------------
+Stopping; processing queued documents==Durduruluyor; kuyruktaki belgeler işleniyor
+Import completed with errors==İçe aktarma hatalarla tamamlandı
+Processing last documents==Son belgeler işleniyor
+Preparing import==İçe aktarma hazırlanıyor
+Import completed==İçe aktarma tamamlandı
+Import running==İçe aktarma sürüyor
+Import aborted==İçe aktarma iptal edildi
+Import failed==İçe aktarma başarısız
 #-----------------------------

@@ -4245,23 +4245,50 @@ words/minute==Wörter/Minute
 distribute&nbsp;==verteilen&nbsp;
 #File: IndexPackDownloader_p.html
 #---------------------------
+First download a pack. Then open Pack Manager and select load to import it into the index.==Zuerst ein Paket herunterladen. Anschließend den Pack Manager öffnen und beim Paket „load“ wählen, um es in den Index einzulesen.
+Next step: open Pack Manager and select load beside this pack to import it into the index.==Nächster Schritt: Den Pack Manager öffnen und bei diesem Paket „load“ wählen, um es in den Index einzulesen.
+Large packs can take several minutes. Keep this page open until completion.==Große Pakete können mehrere Minuten benötigen. Diese Seite bis zum Abschluss geöffnet lassen.
+The transfer may still be running. Check Pack Manager before retrying.==Die Übertragung läuft möglicherweise noch. Vor einem erneuten Versuch im Pack Manager nachsehen.
+Download status unavailable.==Download-Status nicht verfügbar.
+Downloaded; ready to import.==Heruntergeladen; bereit zum Import.
+Import in Pack Manager==Im Pack Manager importieren
 YaCy Pack Downloader==YaCy-Paket-Downloader
+View in Pack Manager==Im Pack Manager ansehen
+Queued or importing.==Wartet auf den Import oder wird eingelesen.
+Download completed:==Download abgeschlossen:
+Download failed:==Download fehlgeschlagen:
 Available Packs==Verfügbare Pakete
-File==Datei
+Pack processed.==Verarbeitung abgeschlossen.
+Stored locally.==Lokal gespeichert.
+Downloading...==Wird heruntergeladen...
+Download size==Download-Größe
+>Download<==>Herunterladen<
+Unknown==Unbekannt
 Process==Verarbeiten
 Repo ID==Repo-ID
 Source==Quelle
+File==Datei
 #-----------------------------
 
 #File: IndexPackManager_p.html
 #---------------------------
+Status unavailable; displayed values may be outdated.==Status nicht verfügbar; angezeigte Werte können veraltet sein.
+Stopping; processing queued documents==Wird gestoppt; eingereihte Dokumente werden verarbeitet
+Processing last documents==Letzte Dokumente werden verarbeitet
+Queued or processing.==Wartet oder wird verarbeitet.
+View import activity==Importaktivität anzeigen
+Waiting for import.==Wartet auf den Import.
+Submitted to index:==An den Index übergeben:
+Packs: Loaded List==Packs: Geladene Liste
 YaCy Pack Manager==YaCy-Paket-Manager
-Pack Folders==Paket-Ordner
-Process==Verarbeiten
-Size (KB)==Größe (KB)
 Packs: Hold List==Packs: Halten-Liste
 Packs: Load List==Packs: Ladeliste
-Packs: Loaded List==Packs: Geladene Liste
+Import running==Import läuft
+Pack Folders==Paket-Ordner
+Documents/s:==Dokumente/s:
+File read:==Datei gelesen:
+Size (KB)==Größe (KB)
+Process==Verarbeiten
 #-----------------------------
 
 #File: IndexPackGenerator_p.html
@@ -4322,6 +4349,7 @@ This feature is available only when a local embedded Solr is active.==Diese Funk
 #-----------------------------
 
 #File: IndexImportJsonList_p.html
+Server file:==Serverdatei:
 #---------------------------
 JsonList File Selection: select an jsonlist file (which may be gz compressed)==JsonList-Dateiauswahl: wählen Sie eine jsonlist-Datei (die gz-komprimiert sein kann)
 No import thread is running, you can start a new thread here==Es läuft kein Import-Thread, Sie können hier einen neuen Thread starten
@@ -4643,4 +4671,46 @@ YaCy Portalsearch:==YaCy-Portalsuche:
 #File: rssTerminal.html
 #---------------------------
 rss terminal==RSS-Terminal
+#-----------------------------
+
+#File: env/templates/importStatus.template
+Loading import status...==Importstatus wird geladen...
+#---------------------------
+Reading 100% does not finish the import. Index submissions can replace existing documents.==100% gelesen bedeutet nicht, dass der Import beendet ist. Indexeinträge können vorhandene Dokumente ersetzen.
+Recent errors (up to 10 groups; location of last occurrence):==Letzte Fehler (bis zu 10 Gruppen; Position des letzten Auftretens):
+Status unavailable; displayed values may be outdated.==Status nicht verfügbar; angezeigte Werte können veraltet sein.
+Enable JavaScript for live import monitoring.==Für die laufende Importanzeige JavaScript aktivieren.
+No JSON import has run since startup.==Seit dem Start wurde kein JSON-Import ausgeführt.
+No progress for at least 60 seconds.==Seit mindestens 60 Sekunden kein Fortschritt.
+Stop after queued documents==Nach eingereihten Dokumenten stoppen
+Estimated read time left:==Geschätzte verbleibende Lesezeit:
+Seconds since progress:==Sekunden seit Fortschritt:
+Submitted to index:==An den Index übergeben:
+JSON / Pack Import==JSON-/Pack-Import
+Not yet available==Noch nicht verfügbar
+Documents read:==Dokumente gelesen:
+Ignored fields:==Ignorierte Felder:
+Busy workers:==Beschäftigte Threads:
+Documents/s:==Dokumente/s:
+Occurrences==Vorkommen
+File read:==Datei gelesen:
+Skipped:==Übersprungen:
+Elapsed:==Laufzeit:
+Document==Dokument
+Errors:==Fehler:
+Queue:==Warteschlange:
+Error==Fehler
+Line==Zeile
+#-----------------------------
+
+#File: env/templates/importStates.template
+#---------------------------
+Stopping; processing queued documents==Wird gestoppt; eingereihte Dokumente werden verarbeitet
+Import completed with errors==Import mit Fehlern beendet
+Processing last documents==Letzte Dokumente werden verarbeitet
+Preparing import==Import wird vorbereitet
+Import completed==Import beendet
+Import running==Import läuft
+Import aborted==Import abgebrochen
+Import failed==Import fehlgeschlagen
 #-----------------------------

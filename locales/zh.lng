@@ -1825,6 +1825,7 @@ comma-separated (default: 404,410,-1; -1=DNS/network errors)==以逗号分隔（
 #-----------------------------
 
 #File: IndexImportJsonList_p.html
+Server file:==服务器文件：
 #---------------------------
 "Import JsonList File"=="导入 JsonList 文件"
 "Stop"=="停止"
@@ -1945,12 +1946,29 @@ Remaining Time:==剩余时间:
 
 #File: IndexPackDownloader_p.html
 #---------------------------
+First download a pack. Then open Pack Manager and select load to import it into the index.==请先下载一个包。然后打开 Pack Manager 并选择 load，将其导入索引。
+Next step: open Pack Manager and select load beside this pack to import it into the index.==下一步：打开 Pack Manager，选择此包旁边的 load，将其导入索引。
+Large packs can take several minutes. Keep this page open until completion.==较大的包可能需要几分钟。请保持此页面打开，直到下载完成。
+The transfer may still be running. Check Pack Manager before retrying.==传输可能仍在进行。重试前请先查看 Pack Manager。
+Download status unavailable.==无法获取下载状态。
+Downloaded; ready to import.==已下载，可以导入。
+Import in Pack Manager==在 Pack Manager 中导入
 YaCy Pack Downloader==YaCy 包下载器
+View in Pack Manager==在 Pack Manager 中查看
+Queued or importing.==正在排队或导入。
+Download completed:==下载完成：
+Download failed:==下载失败：
 Available Packs==可用包
-Source==来源
+Pack processed.==包已处理。
+Stored locally.==已保存在本地。
+Downloading...==正在下载...
+Download size==下载大小
+>Download<==>下载<
+Unknown==未知
 Repo ID==仓库 ID
-File==文件
 Process==过程
+Source==来源
+File==文件
 #-----------------------------
 
 #File: IndexPackGenerator_p.html
@@ -1996,13 +2014,23 @@ Size (KB)==大小（KB）
 
 #File: IndexPackManager_p.html
 #---------------------------
+Status unavailable; displayed values may be outdated.==无法获取状态，显示的值可能已过时。
+Stopping; processing queued documents==正在停止，处理队列中的文档
+Processing last documents==正在处理最后的文档
+Queued or processing.==正在排队或处理。
+View import activity==查看导入活动
+Waiting for import.==等待导入。
+Submitted to index:==已提交到索引：
+Packs: Loaded List==包：已加载列表
 YaCy Pack Manager==YaCy 包管理器
-Pack Folders==打包文件夹
 Packs: Hold List==包：保留清单
+Packs: Load List==包：加载列表
+Import running==正在导入
+Pack Folders==打包文件夹
+Documents/s:==文档/秒：
+File read:==文件读取：
 Size (KB)==大小（KB）
 Process==过程
-Packs: Load List==包：加载列表
-Packs: Loaded List==包：已加载列表
 #-----------------------------
 
 #File: IndexReIndexMonitor_p.html
@@ -4539,4 +4567,46 @@ Apps==应用程序
 Extended==扩展
 Strict==严格的
 Location==位置
+#-----------------------------
+
+#File: env/templates/importStatus.template
+Loading import status...==正在加载导入状态...
+#---------------------------
+Reading 100% does not finish the import. Index submissions can replace existing documents.==读取 100% 并不代表导入完成。提交到索引的文档可能替换现有文档。
+Recent errors (up to 10 groups; location of last occurrence):==最近的错误（最多 10 组，显示最后一次发生的位置）：
+Status unavailable; displayed values may be outdated.==无法获取状态，显示的值可能已过时。
+Enable JavaScript for live import monitoring.==请启用 JavaScript 以实时监控导入。
+No JSON import has run since startup.==启动后尚未运行 JSON 导入。
+No progress for at least 60 seconds.==至少 60 秒没有进展。
+Stop after queued documents==处理完队列文档后停止
+Estimated read time left:==预计剩余读取时间：
+Seconds since progress:==距上次进展的秒数：
+Submitted to index:==已提交到索引：
+JSON / Pack Import==JSON / Pack 导入
+Not yet available==尚不可用
+Documents read:==已读取文档：
+Ignored fields:==已忽略字段：
+Busy workers:==忙碌线程：
+Documents/s:==文档/秒：
+Occurrences==出现次数
+File read:==文件读取：
+Skipped:==已跳过：
+Elapsed:==已用时间：
+Document==文档
+Errors:==错误：
+Queue:==队列：
+Error==错误
+Line==行
+#-----------------------------
+
+#File: env/templates/importStates.template
+#---------------------------
+Stopping; processing queued documents==正在停止，处理队列中的文档
+Import completed with errors==导入完成但有错误
+Processing last documents==正在处理最后的文档
+Preparing import==正在准备导入
+Import completed==导入完成
+Import running==正在导入
+Import aborted==导入已中止
+Import failed==导入失败
 #-----------------------------

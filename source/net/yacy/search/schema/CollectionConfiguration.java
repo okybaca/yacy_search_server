@@ -55,6 +55,8 @@ import org.apache.solr.common.SolrException;
 import org.apache.solr.common.SolrInputDocument;
 import org.apache.solr.common.SolrInputField;
 
+import com.cybozu.labs.langdetect.DetectorFactory;
+
 import net.yacy.cora.document.analysis.Classification;
 import net.yacy.cora.document.analysis.Classification.ContentDomain;
 import net.yacy.cora.document.analysis.EnhancedTextProfileSignature;
@@ -87,11 +89,13 @@ import net.yacy.cora.util.CommonPattern;
 import net.yacy.cora.util.ConcurrentLog;
 import net.yacy.cora.util.SpaceExceededException;
 import net.yacy.document.Condenser;
+import net.yacy.document.DateDetection;
 import net.yacy.document.Document;
 import net.yacy.document.ProbabilisticClassifier;
 import net.yacy.document.SentenceReader;
 import net.yacy.document.Tokenizer;
 import net.yacy.document.content.DCEntry;
+import net.yacy.document.language.Identificator;
 import net.yacy.document.parser.html.ContentScraper;
 import net.yacy.document.parser.html.IconEntry;
 import net.yacy.document.parser.html.ImageEntry;
@@ -269,7 +273,8 @@ public class CollectionConfiguration extends SchemaConfiguration implements Seri
     }
 
     /**
-     * add uri attributes to solr document and assign the document id
+     * Add URI attributes and derive missing metadata from available document fields.
+     * Content-derived fields are calculated even when disabled in the schema.
      * @param doc
      * @param allAttr
      * @param digestURL used to calc. the document.id and the doc.sku=(in index stored url)
@@ -325,7 +330,122 @@ public class CollectionConfiguration extends SchemaConfiguration implements Seri
             if (allAttr || this.contains(CollectionSchema.url_parameter_key_sxt)) this.add(doc, CollectionSchema.url_parameter_key_sxt, searchpart.keySet().toArray(new String[searchpart.size()]));
             if (allAttr || this.contains(CollectionSchema.url_parameter_value_sxt)) this.add(doc, CollectionSchema.url_parameter_value_sxt,  searchpart.values().toArray(new String[searchpart.size()]));
         }
+        addDocumentAttributes(doc);
         return us;
+    }
+
+    /**
+     * Derive missing body metadata exclusively from {@link CollectionSchema#text_t}
+     * and heading counts from the corresponding h1_txt through h6_txt fields.
+     * Existing fields, including empty values, are preserved. Target fields are
+     * populated independently of their schema activation. Missing or non-string
+     * text skips body derivations; heading counts require their source fields and
+     * language detection requires loaded profiles. A supplied date list is the
+     * source for a missing date count and is not re-derived from the text.
+     *
+     * @param doc document containing the source text and receiving its derived metadata
+     */
+    public void addTextAttributes(final SolrInputDocument doc) {
+        addHeadingCounts(doc);
+        final Object textValue = doc.getFieldValue(CollectionSchema.text_t.getSolrFieldName());
+        if (!(textValue instanceof String)) return;
+        final String text = (String) textValue;
+        addMissing(doc, CollectionSchema.wordcount_i, wordCount(text));
+        if (!doc.containsKey(CollectionSchema.exact_signature_l.getSolrFieldName())) {
+            addMissing(doc, CollectionSchema.exact_signature_l, EnhancedTextProfileSignature.getSignatureLong(text));
+        }
+        if (!doc.containsKey(CollectionSchema.fuzzy_signature_l.getSolrFieldName())
+                || !doc.containsKey(CollectionSchema.fuzzy_signature_text_t.getSolrFieldName())) {
+            final EnhancedTextProfileSignature signature = EnhancedTextProfileSignature.create(
+                    text, Ranking.getQuantRate(), Ranking.getMinTokenLen());
+            addMissing(doc, CollectionSchema.fuzzy_signature_l, EnhancedTextProfileSignature.getSignatureLong(signature));
+            addMissing(doc, CollectionSchema.fuzzy_signature_text_t, signature.getSignatureText().toString());
+        }
+        if (!text.isEmpty() && !doc.containsKey(CollectionSchema.language_s.getSolrFieldName())
+                && !DetectorFactory.getLangList().isEmpty()) {
+            final Identificator identificator = new Identificator();
+            identificator.add(text);
+            final String language = identificator.getLanguage();
+            if (language != null) addMissing(doc, CollectionSchema.language_s, language);
+        }
+        if (doc.containsKey(CollectionSchema.dates_in_content_dts.getSolrFieldName())) {
+            addCount(doc, CollectionSchema.dates_in_content_dts, CollectionSchema.dates_in_content_count_i);
+        } else {
+            final Set<Date> dates = DateDetection.parse(text, 0);
+            addMissing(doc, CollectionSchema.dates_in_content_count_i, dates.size());
+            if (!dates.isEmpty()) addMissing(doc, CollectionSchema.dates_in_content_dts, dates.toArray(new Date[dates.size()]));
+        }
+    }
+
+    /** Derive metadata from supplied titles, descriptions and lists, preserving existing values. */
+    private static void addDocumentAttributes(final SolrInputDocument doc) {
+        addTextStatistics(doc, CollectionSchema.title, CollectionSchema.title_count_i,
+                CollectionSchema.title_chars_val, CollectionSchema.title_words_val, CollectionSchema.title_exact_signature_l);
+        addTextStatistics(doc, CollectionSchema.description_txt, CollectionSchema.description_count_i,
+                CollectionSchema.description_chars_val, CollectionSchema.description_words_val, CollectionSchema.description_exact_signature_l);
+        addCount(doc, CollectionSchema.dates_in_content_dts, CollectionSchema.dates_in_content_count_i);
+
+        addHeadingCounts(doc);
+        addCount(doc, CollectionSchema.images_urlstub_sxt, CollectionSchema.imagescount_i);
+        addCount(doc, CollectionSchema.inboundlinks_urlstub_sxt, CollectionSchema.inboundlinkscount_i);
+        addCount(doc, CollectionSchema.outboundlinks_urlstub_sxt, CollectionSchema.outboundlinkscount_i);
+        final Collection<Object> inbound = doc.getFieldValues(CollectionSchema.inboundlinks_urlstub_sxt.getSolrFieldName());
+        final Collection<Object> outbound = doc.getFieldValues(CollectionSchema.outboundlinks_urlstub_sxt.getSolrFieldName());
+        if (inbound != null && outbound != null) {
+            addMissing(doc, CollectionSchema.linkscount_i, inbound.size() + outbound.size());
+        }
+    }
+
+    private static void addTextStatistics(final SolrInputDocument doc, final CollectionSchema source,
+            final CollectionSchema count, final CollectionSchema chars, final CollectionSchema words,
+            final CollectionSchema signature) {
+        final Collection<Object> values = doc.getFieldValues(source.getSolrFieldName());
+        if (values == null) return;
+        final List<String> texts = new ArrayList<>(values.size());
+        final List<Integer> charCounts = new ArrayList<>(values.size());
+        final List<Integer> wordCounts = new ArrayList<>(values.size());
+        for (final Object value : values) {
+            if (value == null) continue;
+            final String text = value.toString();
+            texts.add(text);
+            charCounts.add(text.length());
+            wordCounts.add(CommonPattern.SPACES.split(text).length);
+        }
+        addMissing(doc, count, texts.size());
+        addMissing(doc, chars, charCounts);
+        addMissing(doc, words, wordCounts);
+        if (!texts.isEmpty() && !doc.containsKey(signature.getSolrFieldName())) {
+            final long hash = source == CollectionSchema.title
+                    ? EnhancedTextProfileSignature.getSignatureLong(texts.get(0))
+                    : EnhancedTextProfileSignature.getSignatureLong(texts.toArray(new String[texts.size()]));
+            addMissing(doc, signature, hash);
+        }
+    }
+
+    private static void addHeadingCounts(final SolrInputDocument doc) {
+        addCount(doc, CollectionSchema.h1_txt, CollectionSchema.h1_i);
+        addCount(doc, CollectionSchema.h2_txt, CollectionSchema.h2_i);
+        addCount(doc, CollectionSchema.h3_txt, CollectionSchema.h3_i);
+        addCount(doc, CollectionSchema.h4_txt, CollectionSchema.h4_i);
+        addCount(doc, CollectionSchema.h5_txt, CollectionSchema.h5_i);
+        addCount(doc, CollectionSchema.h6_txt, CollectionSchema.h6_i);
+    }
+
+    private static void addCount(final SolrInputDocument doc, final CollectionSchema source, final CollectionSchema count) {
+        final Collection<Object> values = doc.getFieldValues(source.getSolrFieldName());
+        if (values != null) addMissing(doc, count, values.size());
+    }
+
+    private static void addMissing(final SolrInputDocument doc, final CollectionSchema field, final Object value) {
+        if (!doc.containsKey(field.getSolrFieldName())) doc.setField(field.getSolrFieldName(), value);
+    }
+
+    /** Same word-count convention as the regular document indexing path. */
+    private static int wordCount(final String content) {
+        if (content.isEmpty()) return 0;
+        int count = 1;
+        for (int i = content.length() - 1; i >= 0; i--) if (content.charAt(i) == ' ') count++;
+        return count;
     }
 
     /**
@@ -945,13 +1065,7 @@ public class CollectionConfiguration extends SchemaConfiguration implements Seri
         // content (must be written after special parser data, since this can influence the content)
         if (allAttr || this.contains(CollectionSchema.text_t)) this.add(doc, CollectionSchema.text_t, content);
         if (allAttr || this.contains(CollectionSchema.wordcount_i)) {
-            if (content.length() == 0) {
-                this.add(doc, CollectionSchema.wordcount_i, 0);
-            } else {
-                int contentwc = 1;
-                for (int i = content.length() - 1; i >= 0; i--) if (content.charAt(i) == ' ') contentwc++;
-                this.add(doc, CollectionSchema.wordcount_i, contentwc);
-            }
+            this.add(doc, CollectionSchema.wordcount_i, wordCount(content));
         }
 
         // statistics about the links

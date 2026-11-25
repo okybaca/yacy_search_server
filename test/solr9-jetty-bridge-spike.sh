@@ -19,6 +19,13 @@ test/jetty-solr-dependency-guard.sh
 work=$(mktemp -d "${TMPDIR:-/tmp}/yacy-solr9-bridge-test.XXXXXX")
 trap 'rm -rf "$work"' EXIT HUP INT TERM
 
+relocation_classpath='build/solr9-bridge/tool:build/solr9-bridge/tool-libs/*:libt/*'
+javac --release 17 -cp "$relocation_classpath" -d "$work" \
+    test/java/net/yacy/test/jetty/VerifyJettyRelocation.java \
+    test/java/net/yacy/test/jetty/RelocateJettyPackagesTest.java
+java -cp "$work:$relocation_classpath" org.junit.runner.JUnitCore \
+    net.yacy.test.jetty.RelocateJettyPackagesTest
+
 classpath=build/classes/java/main
 for archive in lib/*.jar libt/*.jar; do
     case $(basename "$archive") in

@@ -5119,6 +5119,9 @@
 
 <file original="IndexImportJsonList_p.html"  source-language="en"  datatype="html">
   <body>
+    <trans-unit id="23d99341" xml:space="preserve" approved="no" translate="yes">
+       <source>Server file:</source>
+    </trans-unit>
     <trans-unit id="9a834205" xml:space="preserve" approved="no" translate="yes">
        <source>"Import JsonList File"</source>
     </trans-unit>
@@ -5434,6 +5437,57 @@
 
 <file original="IndexPackDownloader_p.html"  source-language="en"  datatype="html">
   <body>
+    <trans-unit id="8cd905a0" xml:space="preserve" approved="no" translate="yes">
+       <source>First download a pack. Then open Pack Manager and select load to import it into the index.</source>
+    </trans-unit>
+    <trans-unit id="fe585f4" xml:space="preserve" approved="no" translate="yes">
+       <source>Downloading...</source>
+    </trans-unit>
+    <trans-unit id="4c78cf5" xml:space="preserve" approved="no" translate="yes">
+       <source>Large packs can take several minutes. Keep this page open until completion.</source>
+    </trans-unit>
+    <trans-unit id="960c3fd4" xml:space="preserve" approved="no" translate="yes">
+       <source>Download status unavailable.</source>
+    </trans-unit>
+    <trans-unit id="3e86e188" xml:space="preserve" approved="no" translate="yes">
+       <source>The transfer may still be running. Check Pack Manager before retrying.</source>
+    </trans-unit>
+    <trans-unit id="f7001866" xml:space="preserve" approved="no" translate="yes">
+       <source>View in Pack Manager</source>
+    </trans-unit>
+    <trans-unit id="fd4005c7" xml:space="preserve" approved="no" translate="yes">
+       <source>Download completed:</source>
+    </trans-unit>
+    <trans-unit id="ed25c055" xml:space="preserve" approved="no" translate="yes">
+       <source>Next step: open Pack Manager and select load beside this pack to import it into the index.</source>
+    </trans-unit>
+    <trans-unit id="121bc966" xml:space="preserve" approved="no" translate="yes">
+       <source>Import in Pack Manager</source>
+    </trans-unit>
+    <trans-unit id="ef79ce16" xml:space="preserve" approved="no" translate="yes">
+       <source>&gt;Download&lt;</source>
+    </trans-unit>
+    <trans-unit id="477c13ed" xml:space="preserve" approved="no" translate="yes">
+       <source>Downloaded; ready to import.</source>
+    </trans-unit>
+    <trans-unit id="fb77b841" xml:space="preserve" approved="no" translate="yes">
+       <source>Queued or importing.</source>
+    </trans-unit>
+    <trans-unit id="d346b2e7" xml:space="preserve" approved="no" translate="yes">
+       <source>Pack processed.</source>
+    </trans-unit>
+    <trans-unit id="7752e4b3" xml:space="preserve" approved="no" translate="yes">
+       <source>Stored locally.</source>
+    </trans-unit>
+    <trans-unit id="2e0d4c79" xml:space="preserve" approved="no" translate="yes">
+       <source>Download size</source>
+    </trans-unit>
+    <trans-unit id="523e442a" xml:space="preserve" approved="no" translate="yes">
+       <source>Unknown</source>
+    </trans-unit>
+    <trans-unit id="5f539425" xml:space="preserve" approved="no" translate="yes">
+       <source>Download failed:</source>
+    </trans-unit>
     <trans-unit id="e3ffad3a" xml:space="preserve" approved="no" translate="yes">
        <source>YaCy Pack Downloader</source>
     </trans-unit>
@@ -5593,6 +5647,36 @@
     </trans-unit>
     <trans-unit id="ab997dd9" xml:space="preserve" approved="no" translate="yes">
        <source>Packs: Loaded List</source>
+    </trans-unit>
+    <trans-unit id="358d4f5f" xml:space="preserve" approved="no" translate="yes">
+       <source>Waiting for import.</source>
+    </trans-unit>
+    <trans-unit id="33357c64" xml:space="preserve" approved="no" translate="yes">
+       <source>Import running</source>
+    </trans-unit>
+    <trans-unit id="bf99563b" xml:space="preserve" approved="no" translate="yes">
+       <source>Processing last documents</source>
+    </trans-unit>
+    <trans-unit id="76b3f73f" xml:space="preserve" approved="no" translate="yes">
+       <source>Stopping; processing queued documents</source>
+    </trans-unit>
+    <trans-unit id="7feace5c" xml:space="preserve" approved="no" translate="yes">
+       <source>Status unavailable; displayed values may be outdated.</source>
+    </trans-unit>
+    <trans-unit id="8b0bb1e0" xml:space="preserve" approved="no" translate="yes">
+       <source>File read:</source>
+    </trans-unit>
+    <trans-unit id="359b1e8" xml:space="preserve" approved="no" translate="yes">
+       <source>Submitted to index:</source>
+    </trans-unit>
+    <trans-unit id="b20924fe" xml:space="preserve" approved="no" translate="yes">
+       <source>Documents/s:</source>
+    </trans-unit>
+    <trans-unit id="2781caeb" xml:space="preserve" approved="no" translate="yes">
+       <source>Queued or processing.</source>
+    </trans-unit>
+    <trans-unit id="44bfe9cf" xml:space="preserve" approved="no" translate="yes">
+       <source>View import activity</source>
     </trans-unit>
   </body>
 </file>
@@ -12486,4 +12570,114 @@
   </body>
 </file>
 
+<file original="env/templates/importStatus.template" source-language="en" datatype="html">
+  <body>
+    <trans-unit id="6285b505" xml:space="preserve" approved="no" translate="yes">
+       <source>Loading import status...</source>
+    </trans-unit>
+    <trans-unit id="ea866fe3" xml:space="preserve" approved="no" translate="yes">
+       <source>JSON / Pack Import</source>
+    </trans-unit>
+    <trans-unit id="6323534" xml:space="preserve" approved="no" translate="yes">
+       <source>No JSON import has run since startup.</source>
+    </trans-unit>
+    <trans-unit id="8b0bb1e0" xml:space="preserve" approved="no" translate="yes">
+       <source>File read:</source>
+    </trans-unit>
+    <trans-unit id="1c960ddc" xml:space="preserve" approved="no" translate="yes">
+       <source>Documents read:</source>
+    </trans-unit>
+    <trans-unit id="359b1e8" xml:space="preserve" approved="no" translate="yes">
+       <source>Submitted to index:</source>
+    </trans-unit>
+    <trans-unit id="83c7e32a" xml:space="preserve" approved="no" translate="yes">
+       <source>Skipped:</source>
+    </trans-unit>
+    <trans-unit id="b11160f" xml:space="preserve" approved="no" translate="yes">
+       <source>Errors:</source>
+    </trans-unit>
+    <trans-unit id="b47d7733" xml:space="preserve" approved="no" translate="yes">
+       <source>Ignored fields:</source>
+    </trans-unit>
+    <trans-unit id="b20924fe" xml:space="preserve" approved="no" translate="yes">
+       <source>Documents/s:</source>
+    </trans-unit>
+    <trans-unit id="fcb8425e" xml:space="preserve" approved="no" translate="yes">
+       <source>Elapsed:</source>
+    </trans-unit>
+    <trans-unit id="2b77a2c6" xml:space="preserve" approved="no" translate="yes">
+       <source>Estimated read time left:</source>
+    </trans-unit>
+    <trans-unit id="90d8f569" xml:space="preserve" approved="no" translate="yes">
+       <source>Queue:</source>
+    </trans-unit>
+    <trans-unit id="e614604c" xml:space="preserve" approved="no" translate="yes">
+       <source>Busy workers:</source>
+    </trans-unit>
+    <trans-unit id="8b1b5a86" xml:space="preserve" approved="no" translate="yes">
+       <source>Seconds since progress:</source>
+    </trans-unit>
+    <trans-unit id="8a6febf1" xml:space="preserve" approved="no" translate="yes">
+       <source>Reading 100% does not finish the import. Index submissions can replace existing documents.</source>
+    </trans-unit>
+    <trans-unit id="5387f95c" xml:space="preserve" approved="no" translate="yes">
+       <source>No progress for at least 60 seconds.</source>
+    </trans-unit>
+    <trans-unit id="5ff21f8c" xml:space="preserve" approved="no" translate="yes">
+       <source>Recent errors (up to 10 groups; location of last occurrence):</source>
+    </trans-unit>
+    <trans-unit id="242414" xml:space="preserve" approved="no" translate="yes">
+       <source>Line</source>
+    </trans-unit>
+    <trans-unit id="3737353b" xml:space="preserve" approved="no" translate="yes">
+       <source>Document</source>
+    </trans-unit>
+    <trans-unit id="401e1e8" xml:space="preserve" approved="no" translate="yes">
+       <source>Error</source>
+    </trans-unit>
+    <trans-unit id="922bf8a2" xml:space="preserve" approved="no" translate="yes">
+       <source>Occurrences</source>
+    </trans-unit>
+    <trans-unit id="add75fcd" xml:space="preserve" approved="no" translate="yes">
+       <source>Stop after queued documents</source>
+    </trans-unit>
+    <trans-unit id="7feace5c" xml:space="preserve" approved="no" translate="yes">
+       <source>Status unavailable; displayed values may be outdated.</source>
+    </trans-unit>
+    <trans-unit id="e48f4772" xml:space="preserve" approved="no" translate="yes">
+       <source>Enable JavaScript for live import monitoring.</source>
+    </trans-unit>
+    <trans-unit id="ef3b30e4" xml:space="preserve" approved="no" translate="yes">
+       <source>Not yet available</source>
+    </trans-unit>
+  </body>
+</file>
+<file original="env/templates/importStates.template" source-language="en" datatype="html">
+  <body>
+    <trans-unit id="388e4f61" xml:space="preserve" approved="no" translate="yes">
+       <source>Preparing import</source>
+    </trans-unit>
+    <trans-unit id="33357c64" xml:space="preserve" approved="no" translate="yes">
+       <source>Import running</source>
+    </trans-unit>
+    <trans-unit id="bf99563b" xml:space="preserve" approved="no" translate="yes">
+       <source>Processing last documents</source>
+    </trans-unit>
+    <trans-unit id="76b3f73f" xml:space="preserve" approved="no" translate="yes">
+       <source>Stopping; processing queued documents</source>
+    </trans-unit>
+    <trans-unit id="eb2847b0" xml:space="preserve" approved="no" translate="yes">
+       <source>Import completed</source>
+    </trans-unit>
+    <trans-unit id="d0c6c795" xml:space="preserve" approved="no" translate="yes">
+       <source>Import completed with errors</source>
+    </trans-unit>
+    <trans-unit id="8f8f8a74" xml:space="preserve" approved="no" translate="yes">
+       <source>Import aborted</source>
+    </trans-unit>
+    <trans-unit id="c2c644f8" xml:space="preserve" approved="no" translate="yes">
+       <source>Import failed</source>
+    </trans-unit>
+  </body>
+</file>
 </xliff>

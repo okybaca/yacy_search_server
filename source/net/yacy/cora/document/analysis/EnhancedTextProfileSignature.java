@@ -29,6 +29,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
 
+import org.apache.solr.common.params.MapSolrParams;
 import org.apache.solr.common.params.SolrParams;
 import org.apache.solr.update.processor.Lookup3Signature;
 
@@ -169,6 +170,17 @@ public class EnhancedTextProfileSignature extends Lookup3Signature {
     public int compare(Token t1, Token t2) {
       return t2.cnt - t1.cnt;
     }
+  }
+
+  /** Build the text profile used for fuzzy duplicate detection. */
+  public static EnhancedTextProfileSignature create(final String text, final float quantRate, final int minTokenLen) {
+      final HashMap<String, String> parameters = new HashMap<>();
+      parameters.put("quantRate", Float.toString(quantRate));
+      parameters.put("minTokenLen", Integer.toString(minTokenLen));
+      final EnhancedTextProfileSignature signature = new EnhancedTextProfileSignature();
+      signature.init(new MapSolrParams(parameters));
+      signature.add(text);
+      return signature;
   }
 
   public static long getSignatureLong(String text) {

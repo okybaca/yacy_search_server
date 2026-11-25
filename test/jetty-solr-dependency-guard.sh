@@ -215,6 +215,7 @@ if [ -d lib ]; then
         done
     done
 
+    set --
     for artifact in \
         solr-api-$solr_version \
         solr-core-$solr_version \
@@ -237,13 +238,13 @@ if [ -d lib ]; then
         if jar tf "$jar" | grep '^org/eclipse/jetty/' >/dev/null 2>&1; then
             fail "unrelocated Jetty class in $jar"
         fi
-        if zipgrep -a -E 'org(/|\.)eclipse(/|\.)jetty' "$jar" >/dev/null 2>&1; then
-            fail "unrelocated Jetty reference in $jar"
-        fi
+        set -- "$@" "$jar"
         if jar tf "$jar" | grep '^org/slf4j/' >/dev/null 2>&1; then
             fail "bridge artifact must not bundle SLF4J classes: $jar"
         fi
     done
+    # Source-file launch uses the same JDK as the build and avoids platform-specific zipgrep behavior.
+    java test/java/net/yacy/test/jetty/VerifyJettyRelocation.java "$@" || fail "Solr bridge runtime linkage is not isolated"
 fi
 
 echo "PASS: production Jetty 12 and the relocated Solr 9 Jetty 10 dependencies are separated."

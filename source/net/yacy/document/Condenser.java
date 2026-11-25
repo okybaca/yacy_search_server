@@ -25,7 +25,6 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.Date;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
@@ -35,7 +34,6 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.SortedSet;
 
-import org.apache.solr.common.params.MapSolrParams;
 
 import net.yacy.cora.document.WordCache;
 import net.yacy.cora.document.analysis.Classification.ContentDomain;
@@ -211,12 +209,8 @@ public final class Condenser extends Tokenizer {
 
         // create hashes for duplicate detection
         // check dups with http://localhost:8090/solr/select?q=*:*&start=0&rows=3&fl=sku,fuzzy_signature_text_t,fuzzy_signature_l,fuzzy_signature_unique_b
-        EnhancedTextProfileSignature fuzzySignatureFactory = new EnhancedTextProfileSignature();
-        Map<String,String> sp = new HashMap<String,String>();
-        sp.put("quantRate", Float.toString(Ranking.getQuantRate())); // for minTokenLen = 2 the value should not be below 0.24; for minTokenLen = 3 the value must be not below 0.5!
-        sp.put("minTokenLen", Integer.toString(Ranking.getMinTokenLen()));
-        fuzzySignatureFactory.init(new MapSolrParams(sp));
-        fuzzySignatureFactory.add(text);
+        final EnhancedTextProfileSignature fuzzySignatureFactory = EnhancedTextProfileSignature.create(
+                text, Ranking.getQuantRate(), Ranking.getMinTokenLen());
         this.fuzzy_signature = EnhancedTextProfileSignature.getSignatureLong(fuzzySignatureFactory);
         this.fuzzy_signature_text = fuzzySignatureFactory.getSignatureText().toString();
         this.exact_signature = EnhancedTextProfileSignature.getSignatureLong(text);
